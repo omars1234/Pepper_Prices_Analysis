@@ -11,3 +11,8 @@ xgboost
 catboost
 hyperopt
 ipykernel
+rpy2
+scikit_posthocs
+upsetplot
+matplotlib_venn
+fitter
