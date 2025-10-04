@@ -1,6 +1,11 @@
 # Pepper_Prices_Analysis
 
 
+👩‍💻 I'm currently working on...
+
+---
+
+
 
 ```bash
 git clone https://github.com/omars1234/Pepper_Prices_Analysis.git
@@ -17,3 +22,4 @@ conda activate EnvPepperPricesAnalysis
 ```bash
 pip install -r requirements.txt
 ```
+
