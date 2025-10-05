@@ -16,3 +16,4 @@ scikit_posthocs
 upsetplot
 matplotlib_venn
 fitter
+import_ipynb
