@@ -1,4 +1,5 @@
-# Pepper_Prices_Analysis
+# Pepper_Prices_Analysis 
+
 
 
 👩‍💻 I'm currently working on...
@@ -13,8 +14,15 @@
 
 *This Project provides the industry with a well reliable analysis that drive the decision making in the industry of Bell Pepper*
 
+
+* *Bell Pepper -->* 
+<img src="Capture.PNG" alt="Logo" width="200" style="vertical-align:middle; margin-right:10px;">
+
+
+---
 ---
 
+## *Project :*
 
 
 ```bash
