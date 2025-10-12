@@ -93,12 +93,18 @@ pip install -r requirements.txt
 *6. Inferential statistics*  
 * *1. Mann-Whitney U test --> non-parametric statistical test used when we have non-normaly distributed target feature and Binary inpute Feature*
 
-| **Mann-Whitney U test** |  ![Logo](Capture6.PNG)|
+| **Mann-Whitney U test** |  ![Logo](Capture2.PNG)|
 |---------------------------|------------------------------------------------------------------|
 
 * *2. Spearman's rank correlation test --> non-parametric statistical test used when we have non-normaly distributed target feature and Ordinal inpute Feature to test the monotonic relationship*
 
+| **Spearman's rank correlation test** |  ![Logo](Capture3.PNG)|
+|---------------------------|------------------------------------------------------------------|
+
 * *3. Kruskal-Wallis test--> non-parametric statistical test used when we have non-normaly distributed target feature and Categorical inpute Feature then have more than 2 categories to*
+
+| **Kruskal-Wallis test** |  ![Logo](Capture7.PNG)|
+|---------------------------|------------------------------------------------------------------|
 
 
 
