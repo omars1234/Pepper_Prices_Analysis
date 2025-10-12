@@ -14,19 +14,15 @@
 
 *This Project provides the industry with a well reliable analysis that drive the decision making in the industry of Bell Pepper*
 
-
-**Bell Pepper -->**
-
-<img src="Capture.PNG" alt="Logo" width="200" style="vertical-align:middle; margin-right:10px;">
-
----
 ---
 
+| ![Logo](Capture.PNG) | **Bell Pepper -->** Three different colors. |
+|---------------------------|------------------------------------------------------------------|
 
 
 
 ---
----
+
 
 ## *Project :*
 
