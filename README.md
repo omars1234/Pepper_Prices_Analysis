@@ -43,6 +43,8 @@ conda activate EnvPepperPricesAnalysis
 pip install -r requirements.txt
 ```
 
+---
+---
 
 ## *Project Structure :*
 
@@ -61,6 +63,7 @@ pip install -r requirements.txt
 
        * *date_cols : ['week_start_dt', 'week_end_dt']*
 
+---
 
 *2. Data Cleaning*
 
@@ -70,6 +73,8 @@ pip install -r requirements.txt
 *4. Convert week_start_dt & week_end_dt to datetime datatype*  
 *5. Detect numerical_cols,categorical_cols,boolean_cols, and date_cols*  
 
+---
+
 *3. Feature Engeneering*
 
 * *Create new features from existing ones :*  
@@ -78,6 +83,8 @@ pip install -r requirements.txt
    * year
    * and DayOfMonth
 
+---
+
 *4. Exploratory Data Analysis-EDA*   
 
 * *1. have a quick look at the Number of unique values in each feature*  
@@ -85,10 +92,14 @@ pip install -r requirements.txt
 * *3. categorical_cols EDA : distribution ,basic statistic summary and visualization*  
 * *4. boolean_cols EDA : distribution ,basic statistic summary and visualization*  
 
+---
+
 *5. Probabilities*  
 
 * *1. Empirical probability*  
 * *2. Distribution probability*
+
+---
 
 *6. Inferential statistics*  
 * *1. Mann-Whitney U test --> non-parametric statistical test used when we have non-normaly distributed target feature and Binary inpute Feature*
@@ -107,11 +118,16 @@ pip install -r requirements.txt
 |---------------------------|------------------------------------------------------------------|
 
 
+---
 
+*7. Features developments:*
 
+* *1. Rolling :Computes statistics over a fixed-size moving window*  
+* *2. Expanding : Calculates a cumulative (expanding) statistic Every new point includes all previous data up to that point*  
+* *3. ewm : Exponentially Weighted Moving (EWM) statistics give more weight to recent data and less weight to older data*  
+* *4. ewm(span=span) : Exponential Moving Weighted Average*
 
-
-
+---
 
 
 
