@@ -1,0 +1,14 @@
+artifact_uri: file:///c:/Users/Omar/Desktop/Omar_Files/Python_Analysis/Pepper_Prices_Analysis/Pepper_Prices_Analysis/mlruns/534458263989863094/34ecbea5483b4dacb34b3e82a8659f21/artifacts
+end_time: 1760500370669
+entry_point_name: ''
+experiment_id: '534458263989863094'
+lifecycle_stage: active
+run_id: 34ecbea5483b4dacb34b3e82a8659f21
+run_name: red_ElasticNet
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1760500363208
+status: 3
+tags: []
+user_id: Omar

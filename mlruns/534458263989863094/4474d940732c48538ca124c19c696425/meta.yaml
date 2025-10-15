@@ -1,0 +1,14 @@
+artifact_uri: file:///c:/Users/Omar/Desktop/Omar_Files/Python_Analysis/Pepper_Prices_Analysis/Pepper_Prices_Analysis/mlruns/534458263989863094/4474d940732c48538ca124c19c696425/artifacts
+end_time: 1760500340779
+entry_point_name: ''
+experiment_id: '534458263989863094'
+lifecycle_stage: active
+run_id: 4474d940732c48538ca124c19c696425
+run_name: red_GradientBoostingRegressor
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1760500328277
+status: 3
+tags: []
+user_id: Omar

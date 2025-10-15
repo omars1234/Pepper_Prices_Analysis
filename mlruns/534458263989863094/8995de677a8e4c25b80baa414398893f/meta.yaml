@@ -1,0 +1,14 @@
+artifact_uri: file:///c:/Users/Omar/Desktop/Omar_Files/Python_Analysis/Pepper_Prices_Analysis/Pepper_Prices_Analysis/mlruns/534458263989863094/8995de677a8e4c25b80baa414398893f/artifacts
+end_time: 1760500376779
+entry_point_name: ''
+experiment_id: '534458263989863094'
+lifecycle_stage: active
+run_id: 8995de677a8e4c25b80baa414398893f
+run_name: red_LinearRegression
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1760500370700
+status: 3
+tags: []
+user_id: Omar

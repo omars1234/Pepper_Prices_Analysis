@@ -1,0 +1,14 @@
+artifact_uri: file:///c:/Users/Omar/Desktop/Omar_Files/Python_Analysis/Pepper_Prices_Analysis/Pepper_Prices_Analysis/mlruns/534458263989863094/e230a410bb3942e4ad933b0d99a7d128/artifacts
+end_time: 1760501134857
+entry_point_name: ''
+experiment_id: '534458263989863094'
+lifecycle_stage: active
+run_id: e230a410bb3942e4ad933b0d99a7d128
+run_name: red_DecisionTreeRegressor
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1760501127877
+status: 3
+tags: []
+user_id: Omar

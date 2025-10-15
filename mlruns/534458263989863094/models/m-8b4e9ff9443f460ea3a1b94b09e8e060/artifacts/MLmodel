@@ -1,0 +1,22 @@
+artifact_path: file:///c:/Users/Omar/Desktop/Omar_Files/Python_Analysis/Pepper_Prices_Analysis/Pepper_Prices_Analysis/mlruns/534458263989863094/models/m-8b4e9ff9443f460ea3a1b94b09e8e060/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.10.18
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.7.1
+mlflow_version: 3.4.0
+model_id: m-8b4e9ff9443f460ea3a1b94b09e8e060
+model_size_bytes: 706
+model_uuid: m-8b4e9ff9443f460ea3a1b94b09e8e060
+prompts: null
+run_id: 8995de677a8e4c25b80baa414398893f
+utc_time_created: '2025-10-15 03:52:51.668035'

@@ -1,0 +1,10 @@
+artifact_location: file:///c:/Users/Omar/Desktop/Omar_Files/Python_Analysis/Pepper_Prices_Analysis/Pepper_Prices_Analysis/mlruns/534458263989863094/models/m-28e0e25349ab4e438d43c7f6e018b728/artifacts
+creation_timestamp: 1760501196696
+experiment_id: '534458263989863094'
+last_updated_timestamp: 1760501204826
+model_id: m-28e0e25349ab4e438d43c7f6e018b728
+model_type: null
+name: model
+source_run_id: 8169f1f34db04886b43aa19c0d0bae5a
+status: 2
+status_message: null

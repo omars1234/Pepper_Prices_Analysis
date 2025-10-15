@@ -1,0 +1,14 @@
+artifact_uri: file:///c:/Users/Omar/Desktop/Omar_Files/Python_Analysis/Pepper_Prices_Analysis/Pepper_Prices_Analysis/mlruns/534458263989863094/066f7d3900664a5d8405ddf9b949c996/artifacts
+end_time: 1760501188526
+entry_point_name: ''
+experiment_id: '534458263989863094'
+lifecycle_stage: active
+run_id: 066f7d3900664a5d8405ddf9b949c996
+run_name: yellow_RandomForestRegressor
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1760501178937
+status: 3
+tags: []
+user_id: Omar

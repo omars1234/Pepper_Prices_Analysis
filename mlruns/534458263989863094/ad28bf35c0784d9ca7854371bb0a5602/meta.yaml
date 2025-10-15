@@ -1,0 +1,14 @@
+artifact_uri: file:///c:/Users/Omar/Desktop/Omar_Files/Python_Analysis/Pepper_Prices_Analysis/Pepper_Prices_Analysis/mlruns/534458263989863094/ad28bf35c0784d9ca7854371bb0a5602/artifacts
+end_time: 1760501095770
+entry_point_name: ''
+experiment_id: '534458263989863094'
+lifecycle_stage: active
+run_id: ad28bf35c0784d9ca7854371bb0a5602
+run_name: green_AdaBoostRegressor
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1760501088673
+status: 3
+tags: []
+user_id: Omar
