@@ -130,6 +130,46 @@ pip install -r requirements.txt
 ---
 
 
+*8.  Time series analysis :*
+
+* *1. Features developments :*  
+  * *Rolling :Computes statistics over a fixed-size moving window.*  
+  * *Expanding : Calculates a cumulative (expanding) statistic Every new point includes all previous data up to that point.*  
+  * *ewm : Exponentially Weighted Moving (EWM) statistics give more weight to recent data and less weight to older data.*  
+  * *ewm(span=span) : Exponential Moving Weighted Average*  
+
+* *2. 'min','mean','max' price by year and month :*   
+
+* *3. seperate the dataset based on the p_color :*  
+   * *Visualize the monthly/yearly and weekly price resampling by color :*  
+
+     * *Note :*  
+*We can clearly see that the yellow Pepper has the highest mean price by month,year and week then Red Pepper and lastly Green Pepper*  
+
+   * *Price EDA by p_color.*
+
+* *4. Red Pepper Price Analysis*
+
+  * *'min','mean','max' price of Red Bell Pepper color by year and month*  
+  * *Red Bell Pepper Features developments tables and visualizations*
+  * *Inferential statistics -- > Red Bell Pepper*  
+
+* *5. Green Pepper Price Analysis*
+
+  * *'min','mean','max' price of Green Bell Pepper color by year and month*  
+  * *Green Bell Pepper Features developments tables and visualizations*
+  * *Inferential statistics -- > Green Bell Pepper*
+
+* *5. Yellow Pepper Price Analysis*
+
+  * *'min','mean','max' price of Yellow Bell Pepper color by year and month*  
+  * *Yellow Bell Pepper Features developments tables and visualizations*
+  * *Inferential statistics -- > Yellow Bell Pepper* 
+
+  
+        
+
+
 
  ----------------------------------------
 
