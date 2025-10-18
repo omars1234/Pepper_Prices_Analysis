@@ -166,8 +166,8 @@ pip install -r requirements.txt
   * *Yellow Bell Pepper Features developments tables and visualizations*
   * *Inferential statistics -- > Yellow Bell Pepper* 
 
-  
-        
+
+
 
 
 
