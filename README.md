@@ -44,14 +44,13 @@ pip install -r requirements.txt
 ```
 
 ---
----
 
 ## *Project Structure :*
 
 ### *Analysis Folder :*  
 
 #### *00_Main :*  
-*1. Data Exploration*
+* *1. Data Exploration*
 
    * *A. Data Description :*
 
@@ -67,9 +66,9 @@ pip install -r requirements.txt
 
 ---
 
-*2. Data Cleaning*
+* *2. Data Cleaning*
 
-* *1. Remove the rows with value -1*  
+  * *1. Remove the rows with value -1*  
 *2. Na Values check*  
 *3. Fiiling Na vlaues using interplolate with linear moethod*  
 *4. Convert week_start_dt & week_end_dt to datetime datatype*  
@@ -77,7 +76,7 @@ pip install -r requirements.txt
 
 ---
 
-*3. Feature Engeneering*
+* *3. Feature Engeneering*
 
 * *Create new features from existing ones :*  
    * year  
@@ -87,21 +86,60 @@ pip install -r requirements.txt
 
 ---
 
-*4. Exploratory Data Analysis-EDA*   
+* *4. Exploratory Data Analysis-EDA*   
 
-* *1. have a quick look at the Number of unique values in each feature*  
-* *2. numerical_cols EDA : distribution ,basic statistic summary,correlation and visualization*  
-* *3. categorical_cols EDA : distribution ,basic statistic summary and visualization*  
-* *4. boolean_cols EDA : distribution ,basic statistic summary and visualization*  
+  * *1. have a quick look at the Number of unique values in each feature*  
+  * *2. numerical_cols EDA : distribution ,basic statistic summary,correlation and visualization*  
+  * *3. categorical_cols EDA : distribution ,basic statistic summary and visualization*  
+  * *4. boolean_cols EDA : distribution ,basic statistic summary and visualization*  
+
+---
+
+* *5. Features developments:*
+
+  * *1. Rolling :Computes statistics over a fixed-size moving window*  
+  * *2. Expanding : Calculates a cumulative (expanding) statistic Every new point includes all previous data up to that point*  
+  * *3. ewm : Exponentially Weighted Moving (EWM) statistics give more weight to recent data and less weight to older data*  
+  * *4. ewm(span=span) : Exponential Moving Weighted Average*
+
+
+* *6.  Time series analysis :*
+
+  * *1. Features developments :*  
+    * *Rolling :Computes statistics over a fixed-size moving window.*  
+    * *Expanding : Calculates a cumulative (expanding) statistic Every new point includes all previous data up to that point.*  
+    * *ewm : Exponentially Weighted Moving (EWM) statistics give more weight to recent data and less weight to older data.*  
+    * *ewm(span=span) : Exponential Moving Weighted Average*  
+
+  * *2. 'min','mean','max' price by year and month :*   
+
+  * *3. seperate the dataset based on the p_color :*  
+    * *Visualize the monthly/yearly and weekly price resampling by color :*  
+
+     * *Note :*  
+*We can clearly see that the yellow Pepper has the highest mean price by month,year and week then Red Pepper and lastly Green Pepper*  
+
+   * *Price EDA by p_color.*
+
+  * *4. Red Pepper Price Analysis*
+
+    * *'min','mean','max' price of Red Bell Pepper color by year and month*  
+    * *Red Bell Pepper Features developments tables and visualizations*
+  
+
+  * *5. Green Pepper Price Analysis*
+
+    * *'min','mean','max' price of Green Bell Pepper color by year and month*  
+    * *Green Bell Pepper Features developments tables and visualizations*
+  
+
+  * *6. Yellow Pepper Price Analysis*
+
+    * *'min','mean','max' price of Yellow Bell Pepper color by year and month*  
+    * *Yellow Bell Pepper Features developments tables and visualizations* 
 
 ---
 
-*5. Probabilities*  
-
-* *1. Empirical probability*  
-* *2. Distribution probability*
-
----
 
 #### *01 Correlation :* 
 
@@ -146,71 +184,12 @@ pip install -r requirements.txt
 * *Create 3D visualization of first three principal components*
 * *Assess PCA quality using reconstruction error.*
 * *Visualize reconstruction quality and eigenvalue spectrum*
-
-*6. Inferential statistics*  
-* *1. Mann-Whitney U test --> non-parametric statistical test used when we have non-normaly distributed target feature and Binary inpute Feature*
-
-| **Mann-Whitney U test** |  ![Logo](images/Capture2.PNG)|
-|---------------------------|------------------------------------------------------------------|
-
-* *2. Spearman's rank correlation test --> non-parametric statistical test used when we have non-normaly distributed target feature and Ordinal inpute Feature to test the monotonic relationship*
-
-| **Spearman's rank correlation test** |  ![Logo](images/Capture3.PNG)|
-|---------------------------|------------------------------------------------------------------|
-
-* *3. Kruskal-Wallis test--> non-parametric statistical test used when we have non-normaly distributed target feature and Categorical inpute Feature then have more than 2 categories to*
-
-| **Kruskal-Wallis test** |  ![Logo](images/Capture7.PNG)|
-|---------------------------|------------------------------------------------------------------|
+* *Compare original vs reconstructed data for specific samples*
 
 
----
-
-*7. Features developments:*
-
-* *1. Rolling :Computes statistics over a fixed-size moving window*  
-* *2. Expanding : Calculates a cumulative (expanding) statistic Every new point includes all previous data up to that point*  
-* *3. ewm : Exponentially Weighted Moving (EWM) statistics give more weight to recent data and less weight to older data*  
-* *4. ewm(span=span) : Exponential Moving Weighted Average*
-
----
 
 
-*8.  Time series analysis :*
 
-* *1. Features developments :*  
-  * *Rolling :Computes statistics over a fixed-size moving window.*  
-  * *Expanding : Calculates a cumulative (expanding) statistic Every new point includes all previous data up to that point.*  
-  * *ewm : Exponentially Weighted Moving (EWM) statistics give more weight to recent data and less weight to older data.*  
-  * *ewm(span=span) : Exponential Moving Weighted Average*  
-
-* *2. 'min','mean','max' price by year and month :*   
-
-* *3. seperate the dataset based on the p_color :*  
-   * *Visualize the monthly/yearly and weekly price resampling by color :*  
-
-     * *Note :*  
-*We can clearly see that the yellow Pepper has the highest mean price by month,year and week then Red Pepper and lastly Green Pepper*  
-
-   * *Price EDA by p_color.*
-
-* *4. Red Pepper Price Analysis*
-
-  * *'min','mean','max' price of Red Bell Pepper color by year and month*  
-  * *Red Bell Pepper Features developments tables and visualizations*
-  * *Inferential statistics -- > Red Bell Pepper*  
-
-* *5. Green Pepper Price Analysis*
-
-  * *'min','mean','max' price of Green Bell Pepper color by year and month*  
-  * *Green Bell Pepper Features developments tables and visualizations*
-  * *Inferential statistics -- > Green Bell Pepper*
-
-* *5. Yellow Pepper Price Analysis*
-
-  * *'min','mean','max' price of Yellow Bell Pepper color by year and month*  
-  * *Yellow Bell Pepper Features developments tables and visualizations*
-  * *Inferential statistics -- > Yellow Bell Pepper* 
 
 
 
