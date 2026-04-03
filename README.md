@@ -16,7 +16,7 @@
 
 ---
 
-| **Bell Pepper -->** Three different colors |  ![Logo](Capture.PNG)|
+| **Bell Pepper -->** Three different colors |  ![Logo](images/Capture.PNG)|
 |---------------------------|------------------------------------------------------------------|
 
 
@@ -48,7 +48,9 @@ pip install -r requirements.txt
 
 ## *Project Structure :*
 
+### *Analysis Folder :*  
 
+#### *00_Main :*  
 *1. Data Exploration*
 
    * *A. Data Description :*
@@ -101,20 +103,64 @@ pip install -r requirements.txt
 
 ---
 
+#### *01 Correlation :* 
+
+* *A. Measures of Central Tendency*
+* *B. Measures of Dispersion*
+* *C. Exploration relationships between continuous variables*
+  * *Create a pairplot to visualize relationships between numerical features colored by p_color*
+  * *explore_correlation between continuous variables*
+  * *Calculate basic correlations between continuous variables*
+  * *Correlation Assumptions Vaidation - Pearson correlation.*
+
+#### *02 Partial Correlation :* 
+  * *Analyze p_color effects on correlations*
+  * *correlation analysis between p_color* 
+  * *Comprehensive correlation matrix analysis with confidence intervals ,and creating advanced correlation visualizations*
+
+#### *03 Statistical Tests :* 
+  * *normality check visually and with Shapiro-Wilk test*
+  * *Outlier detection and visualization*
+  * *advanced Normality check* 
+  * *Perform Mann-Whitney U test which is a non-parametric test that compares the distributions of two independent groups*
+  * *Comprehensive exploration of the categorical_data dataset with focus on price differences between p_color - ANOVA*
+    * *Comprehensive check of ANOVA assumptions with visualizations and statistical tests*
+    * *Perform ANOVA with manual calculations to illustrate the underlying mathematics*
+    * *Create comprehensive visualizations of ANOVA results.*
+    * *Perform power analysis for the ANOVA results.*
+    * *Perform Tukey's Honestly Significant Difference test for post-hoc comparisons.*
+  
+  * *Perform Kruskal-Wallis test as non-parametric that compares the distributions of more than two independent groups - alternative to ANOVA.*
+  * *create_comprehensive_summary*
+  * *generate final report*
+
+#### *04 Dimnetional Reduction - PCA :* 
+* *Analyzing high-dimensional data characteristics.*
+* *visualize_data_structure*
+* *Find and display feature correlations to identify redundancy*
+* *Data Preproccesing - STANDARDIZATION*
+* *Implement PCA step-by-step*
+* *Component Interpretation*
+* *visualize_PCA*
+**Component Selection and Quality Assessment* 
+* *Create 3D visualization of first three principal components*
+* *Assess PCA quality using reconstruction error.*
+* *Visualize reconstruction quality and eigenvalue spectrum*
+
 *6. Inferential statistics*  
 * *1. Mann-Whitney U test --> non-parametric statistical test used when we have non-normaly distributed target feature and Binary inpute Feature*
 
-| **Mann-Whitney U test** |  ![Logo](Capture2.PNG)|
+| **Mann-Whitney U test** |  ![Logo](images/Capture2.PNG)|
 |---------------------------|------------------------------------------------------------------|
 
 * *2. Spearman's rank correlation test --> non-parametric statistical test used when we have non-normaly distributed target feature and Ordinal inpute Feature to test the monotonic relationship*
 
-| **Spearman's rank correlation test** |  ![Logo](Capture3.PNG)|
+| **Spearman's rank correlation test** |  ![Logo](images/Capture3.PNG)|
 |---------------------------|------------------------------------------------------------------|
 
 * *3. Kruskal-Wallis test--> non-parametric statistical test used when we have non-normaly distributed target feature and Categorical inpute Feature then have more than 2 categories to*
 
-| **Kruskal-Wallis test** |  ![Logo](Capture7.PNG)|
+| **Kruskal-Wallis test** |  ![Logo](images/Capture7.PNG)|
 |---------------------------|------------------------------------------------------------------|
 
 
