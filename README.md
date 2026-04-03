@@ -16,7 +16,7 @@
 
 ---
 
-| **Bell Pepper -->** Three different colors |  ![Logo](images/Capture.PNG)|
+| **Bell Pepper -->** Three different colors |  ![Logo](images\Capture.PNG)|
 |---------------------------|------------------------------------------------------------------|
 
 
