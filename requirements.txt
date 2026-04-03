@@ -22,3 +22,5 @@ scikit-learn
 tqdm
 mlflow
 missingno
+import_ipynb
+umap-learn
