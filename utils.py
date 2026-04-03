@@ -2156,3 +2156,2557 @@ def practical_correlation_reporting_guide(correlation_analysis):
 
 
 
+##########################################
+from scipy.stats import pearsonr, spearmanr, kendalltau
+import statsmodels.api as sm
+from statsmodels.stats.correlation_tools import corr_nearest, corr_clipped
+import warnings
+from itertools import combinations
+import requests
+from io import StringIO
+
+from sklearn.preprocessing import RobustScaler, StandardScaler
+from sklearn.linear_model import LinearRegression
+
+from scipy.stats import shapiro
+from scipy import stats
+from scipy.cluster.hierarchy import dendrogram, linkage, fcluster
+from scipy.spatial.distance import squareform
+from statsmodels.stats.multitest import multipletests
+from sklearn.utils import resample
+import math
+
+from statsmodels.formula.api import ols
+from statsmodels.stats.anova import anova_lm
+from statsmodels.stats.multicomp import pairwise_tukeyhsd
+from statsmodels.stats.power import FTestAnovaPower
+import warnings
+from itertools import combinations
+import requests
+from io import StringIO
+
+# Suppress warnings
+warnings.filterwarnings('ignore')
+
+# Set visualization style consistent with previous tutorials
+sns.set(style="whitegrid")
+plt.rcParams['figure.figsize'] = (12, 8)
+plt.rcParams['font.size'] = 12
+##########################################
+
+
+def check_normality(data, column):
+    """Check if data follows a normal distribution using QQ-plot and Shapiro-Wilk test."""
+    values = data[column]
+
+    # Create a figure with QQ-plot
+    plt.figure(figsize=(20, 5))
+
+    plt.subplot(1, 2, 1)
+    stats.probplot(values, dist="norm", plot=plt)
+    plt.title(f'Q-Q Plot for {column}')
+
+    plt.subplot(1, 2, 2)
+    sns.histplot(values, kde=True)
+    plt.title(f'Distribution of {column}')
+
+    plt.tight_layout()
+    plt.show()
+
+    # Perform Shapiro-Wilk test for normality
+    statistic, p_value = stats.shapiro(values)
+
+    print(f"Normality check for {column}:")
+    print(f"Shapiro-Wilk test: statistic = {statistic:.4f}, p-value = {p_value:.8f}")
+
+    if p_value < 0.05:
+        print("The data significantly deviates from a normal distribution (p < 0.05).")
+    else:
+        print("The data appears to follow a normal distribution (p >= 0.05).")
+
+    # Calculate skewness and kurtosis
+    skewness = stats.skew(values)
+    kurtosis = stats.kurtosis(values)
+
+    print(f"Skewness: {skewness:.4f}")
+    if abs(skewness) < 0.5:
+        print("  The distribution is approximately symmetric.")
+    elif skewness > 0.5:
+        print("  The distribution is right-skewed (positively skewed).")
+    else:  # skewness < -0.5
+        print("  The distribution is left-skewed (negatively skewed).")
+
+    print(f"Kurtosis: {kurtosis:.4f}")
+    if abs(kurtosis) < 0.5:
+        print("  The distribution has a similar tail weight as the normal distribution.")
+    elif kurtosis > 0.5:
+        print("  The distribution is leptokurtic (heavier tails, more outliers than normal).")
+    else:  # kurtosis < -0.5
+        print("  The distribution is platykurtic (lighter tails, fewer outliers than normal).")
+    print("\n")
+    print("==" * 50)
+
+
+def detect_outliers(data, column):
+    """Detect and visualize outliers using the IQR method."""
+    values = data[column]
+
+    # Calculate Q1, Q3, and IQR
+    q1 = values.quantile(0.25)
+    q3 = values.quantile(0.75)
+    iqr = q3 - q1
+
+    # Define outlier boundaries
+    lower_bound = q1 - 1.5 * iqr
+    upper_bound = q3 + 1.5 * iqr
+
+    # Find outliers
+    outliers = values[(values < lower_bound) | (values > upper_bound)]
+
+    print(f"Outlier detection for {column}:")
+    print(f"Number of outliers: {len(outliers)}")
+    print(f"Percentage of outliers: {(len(outliers) / len(values)) * 100:.2f}%")
+    print(f"Outlier boundaries: Lower = {lower_bound:.4f}, Upper = {upper_bound:.4f}")
+
+    if len(outliers) > 0:
+        print("Outlier values:")
+        print(outliers.values)
+
+    # Visualize with box plot
+    plt.figure(figsize=(20, 6))
+
+    plt.subplot(1, 2, 1)
+    sns.boxplot(y=values)
+    plt.title(f'Box Plot of {column} Showing Outliers')
+    plt.ylabel('Value')
+
+    plt.subplot(1, 2, 2)
+    sns.histplot(values, kde=True)
+    plt.axvline(lower_bound, color='r', linestyle='--', label=f'Lower bound: {lower_bound:.2f}')
+    plt.axvline(upper_bound, color='r', linestyle='--', label=f'Upper bound: {upper_bound:.2f}')
+    plt.title(f'Distribution of {column} with Outlier Boundaries')
+    plt.legend()
+
+    plt.tight_layout()
+    plt.show()
+
+    print("==" * 50)
+
+    # Return the outliers
+    return outliers
+
+
+
+# Function to check normality
+def check_normality_advanced(data, column):
+    """Check if data follows a normal distribution with visualizations and statistical tests."""
+    values = data[column]
+
+    # Create a figure for plots
+    fig, axes = plt.subplots(2, 2, figsize=(20, 7))
+    plt.subplots_adjust(hspace=0.4, wspace=0.4)
+
+    # Plot 1: Histogram with normal curve
+    ax1 = axes[0, 0]
+    sns.histplot(values, kde=True, ax=ax1)
+
+    # Fit a normal distribution to the data and overlay it
+    mu, std = stats.norm.fit(values)
+    x = np.linspace(min(values), max(values), 100)
+    p = stats.norm.pdf(x, mu, std)
+    ax1.plot(x, p * len(values) * (max(values) - min(values)) / 100,
+            'r-', linewidth=2, label=f'Normal: μ={mu:.2f}, σ={std:.2f}')
+
+    ax1.axvline(mu, color='r', linestyle='--', alpha=0.8, label='Mean')
+    ax1.axvline(mu + std, color='g', linestyle='-.', alpha=0.8, label='μ ± 1σ')
+    ax1.axvline(mu - std, color='g', linestyle='-.', alpha=0.8)
+
+    ax1.set_title(f'Histogram of {column} with Normal Curve')
+    ax1.set_xlabel(column)
+    ax1.set_ylabel('Frequency')
+    ax1.legend()
+
+    # Plot 2: QQ plot
+    ax2 = axes[0, 1]
+    stats.probplot(values, dist="norm", plot=ax2)
+    ax2.set_title(f'Q-Q Plot for {column}')
+
+    # Plot 3: Box plot
+    ax3 = axes[1, 0]
+    sns.boxplot(y=values, ax=ax3)
+    ax3.set_title(f'Box Plot of {column}')
+    ax3.set_ylabel(column)
+
+    # Plot 4: Skewness and Kurtosis visualization
+    ax4 = axes[1, 1]
+
+    # Calculate skewness and kurtosis
+    skewness = stats.skew(values)
+    kurtosis = stats.kurtosis(values)
+
+    # Create a labeled bar chart
+    metrics = ['Skewness', 'Kurtosis']
+    values_metrics = [skewness, kurtosis]
+
+    sns.barplot(x=metrics, y=values_metrics, palette='viridis', ax=ax4)
+    ax4.axhline(y=0, color='r', linestyle='--')
+    ax4.set_title(f'Skewness and Kurtosis for {column}')
+
+    # Add text annotations on bars
+    for i, v in enumerate(values_metrics):
+        ax4.text(i, v + 0.1 if v >= 0 else v - 0.2, f'{v:.3f}',
+                ha='center', va='center', fontsize=10)
+
+    plt.tight_layout()
+    plt.suptitle(f'Normality Analysis for {column}', fontsize=16, y=1.02)
+    plt.show()
+
+    # Perform statistical tests for normality
+    print(f"\nNormality Tests for {column}:")
+
+    # Shapiro-Wilk test - best for sample sizes < 2000
+    stat_shapiro, p_shapiro = stats.shapiro(values)
+    print(f"Shapiro-Wilk Test: statistic={stat_shapiro:.4f}, p-value={p_shapiro:.6f}")
+    if p_shapiro < 0.05:
+        result_shapiro = "Reject H0: Data is NOT normally distributed"
+    else:
+        result_shapiro = "Fail to reject H0: Data looks normally distributed"
+    print(f"Interpretation (p << 0.05): {result_shapiro}")
+    print("Note that.. H₀: The data follows a normal distribution")
+    print(" ")
+
+    # Anderson-Darling test
+    result_ad = stats.anderson(values, dist='norm')
+    print(f"Anderson-Darling Test: statistic={result_ad.statistic:.4f}")
+    print("Critical values at significance levels:")
+    for i, significance in enumerate(result_ad.critical_values):
+        sig_level = [15, 10, 5, 2.5, 1][i]
+        if result_ad.statistic > significance:
+            result_ad_i = "Reject H0: Data is NOT normally distributed"
+        else:
+            result_ad_i = "Fail to reject H0: Data looks normally distributed"
+        print(f"  {sig_level}%: {significance:.4f} - {result_ad_i}")
+
+    print("Note that for Anderson-Darling test - If test statistic > critical value: Reject H₀ (data is NOT normal)")
+    print(" ")
+
+    # Calculate and print skewness and kurtosis
+    print(f"\nSkewness: {skewness:.4f}")
+    if abs(skewness) < 0.5:
+        print("  The distribution is approximately symmetric")
+    elif skewness < -0.5:
+        print("  The distribution is negatively skewed (left-tailed)")
+    else:  # skewness > 0.5
+        print("  The distribution is positively skewed (right-tailed)")
+    print("Note that ...")
+    print("Skewness = 0: Perfectly symmetric distribution \n Skewness > 0: Right-skewed (positive skew) - the right tail is longer \n Skewness < 0: Left-skewed (negative skew) - the left tail is longer")
+    print(" In our code, we set a limit of 0.5. So if the skewness < 0.5, we say that the distribution is approximately symmetric")
+    print(" ")
+    print(f"Kurtosis: {kurtosis:.4f}")
+    if abs(kurtosis) < 0.5:
+        print("  The distribution has kurtosis similar to normal distribution (mesokurtic)")
+    elif kurtosis < -0.5:
+        print("  The distribution has lighter tails than normal (platykurtic)")
+    else:  # kurtosis > 0.5
+        print("  The distribution has heavier tails than normal (leptokurtic)")
+    print("Note that ...")
+    print("Kurtosis = 0: Same tailedness as a normal distribution (mesokurtic) \n Kurtosis > 0: Heavier tails than normal (leptokurtic) - more outliers \n Kurtosis < 0: Lighter tails than normal (platykurtic) - fewer outliers")
+    print(" In our code, we set a limit of 0.5. So if kurtosis < 0.5, we say that he distribution has kurtosis similar to normal distribution (mesokurtic)")
+    print(" ")
+
+    print("==" * 50)
+
+
+###############################
+import statsmodels.api as sm
+from statsmodels.formula.api import ols
+from statsmodels.stats.power import TTestIndPower, TTestPower
+import warnings
+from scipy.stats import chi2_contingency
+from scipy.stats import mannwhitneyu, wilcoxon, ranksums
+from scipy.stats import fisher_exact
+from scipy.stats import median_test
+from scipy.stats import binomtest  # For sign test
+
+# Suppress warnings
+warnings.filterwarnings('ignore')
+###############################
+
+
+def perform_mannwhitney_test(data, group_var, test_var, display_name=None):
+    '''
+    we can use Mann-Whitney U test which is a non-parametric test that compares the distributions of two independent groups.
+     It does not assume normality and is based on the ranks of the data rather than the raw values.
+    '''
+
+    if display_name is None:
+        display_name = test_var
+
+    group_values = data[group_var].unique()
+    if len(group_values) != 2:
+        print(f"Error: {group_var} must have exactly 2 unique values for Mann-Whitney test.")
+        return
+
+    group1 = data[data[group_var] == group_values[0]][test_var].dropna()  
+    group2 = data[data[group_var] == group_values[1]][test_var].dropna()  
+
+    # Calculate descriptive statistics for each group
+    n1, n2 = len(group1), len(group2)
+    mean1, mean2 = group1.mean(), group2.mean()
+    median1, median2 = group1.median(), group2.median()
+    std1, std2 = group1.std(), group2.std()
+    iqr1 = group1.quantile(0.75) - group1.quantile(0.25)
+    iqr2 = group2.quantile(0.75) - group2.quantile(0.25)
+
+    print(f"\nMann-Whitney U Test: Comparing {display_name} between {group_var} is {group_values[0]} and {group_var} is {group_values[1]} groups")
+    print(f"\nDescriptive Statistics:")
+    print(f"  {group_values[0]}: n = {n1}, Mean = {mean1:.2f}, Median = {median1:.2f}, SD = {std1:.2f}, IQR = {iqr1:.2f}")
+    print(f"  {group_values[1]}: n = {n2}, Mean = {mean2:.2f}, Median = {median2:.2f}, SD = {std2:.2f}, IQR = {iqr2:.2f}")
+
+    # Perform Mann-Whitney U test
+    '''
+    Note: 'alternative' parameter set to 'two-sided' for a two-tailed test
+    '''
+    u_stat, p_value = mannwhitneyu(group1, group2, alternative='two-sided')
+
+    '''
+    Calculate effect size (r = Z / sqrt(N))
+    Convert U to Z score for the effect size calculation
+    '''
+    n_total = n1 + n2
+    mean_u = (n1 * n2) / 2
+    std_u = np.sqrt((n1 * n2 * (n1 + n2 + 1)) / 12)
+    z_score = (u_stat - mean_u) / std_u
+    effect_size_r = abs(z_score) / np.sqrt(n_total)
+
+    # Interpret effect size
+    if effect_size_r < 0.1:
+        effect_interpretation = "negligible"
+    elif effect_size_r < 0.3:
+        effect_interpretation = "small"
+    elif effect_size_r < 0.5:
+        effect_interpretation = "medium"
+    else:
+        effect_interpretation = "large"
+
+    # Print Mann-Whitney U test results
+    print("\nMann-Whitney U Test Results:")
+    print(f"  U statistic = {u_stat:.2f}")
+    print(f"  p-value = {p_value:.6f}")
+    print(f"  Effect size r = {effect_size_r:.4f} ({effect_interpretation} effect)")
+
+    # Print interpretation
+    if p_value < 0.05:
+        print(f"  Result: Statistically significant difference in {display_name} between groups")
+        print(f"  The distributions of {display_name} for {group_values[0]} and {group_values[1]} are significantly different")
+    else:
+        print(f"  Result: No statistically significant difference in {display_name} between groups")
+        print(f"  No evidence that the distributions of {display_name} differ between {group_values[0]} and {group_values[1]}")
+  
+
+    # Create visualizations
+    plt.figure(figsize=(20, 7))
+
+    # 1. Box plots
+    plt.subplot(2, 2, 1)
+    sns.boxplot(x=group_var, y=test_var, data=data)
+    plt.title(f'Box Plot of {display_name} by {group_var}')
+    plt.ylabel(display_name)
+
+    # 2. Violin plots
+    plt.subplot(2, 2, 2)
+    sns.violinplot(x=group_var, y=test_var, data=data, inner='quartile')
+    plt.title(f'Violin Plot of {display_name} by {group_var}')
+    plt.ylabel(display_name)
+
+    # 3. Overlapping histograms
+    plt.subplot(2, 2, 3)
+    sns.histplot(group1, color='blue', alpha=0.5, label=group_values[0], kde=True)
+    sns.histplot(group2, color='orange', alpha=0.5, label=group_values[1], kde=True)
+    plt.title(f'Distribution of {display_name} by {group_var}')
+    plt.xlabel(display_name)
+    plt.legend()
+
+    # 4. Emperical Cumulative distribution function (ECDF) plot - useful for Mann-Whitney U test
+    plt.subplot(2, 2, 4)
+
+    # Calculate ECDF for each group
+    def ecdf(x):
+        # Count the proportion of values less than or equal to each value
+        x = np.sort(x)
+        y = np.arange(1, len(x) + 1) / len(x)
+        return x, y
+
+    x1, y1 = ecdf(group1)
+    x2, y2 = ecdf(group2)
+
+    plt.step(x1, y1, label=group_values[0], where='post')
+    plt.step(x2, y2, label=group_values[1], where='post')
+
+    plt.title(f'Empirical Cumulative Distribution of {display_name}')
+    plt.xlabel(display_name)
+    plt.ylabel('Cumulative Probability')
+    plt.legend()
+
+    # Add p-value annotation to the plot
+    sig_text = f"Mann-Whitney U Test\np = {p_value:.4f}"
+    if p_value < 0.05:
+        sig_text += "\n(Significant)"
+    else:
+        sig_text += "\n(Not Significant)"
+
+    plt.figtext(0.5, 0.01, sig_text, ha='center', fontsize=12,
+                bbox={'facecolor':'white', 'alpha':0.8, 'pad':5})
+
+    plt.tight_layout()
+    plt.subplots_adjust(bottom=0.15)
+    plt.suptitle(f'Mann-Whitney U Test: {display_name} by {group_var}', fontsize=16, y=1.05)
+    plt.show()
+
+    # Return results for further analysis if needed
+    return {
+        'u_statistic': u_stat,
+        'p_value': p_value,
+        'effect_size_r': effect_size_r,
+        'n1': n1,
+        'n2': n2
+    }
+
+
+
+def explore_categorical_data(data):
+    """
+    Comprehensive exploration of the categorical_data dataset with focus on price differences
+    between p_color (our main ANOVA example).
+
+    Parameters:
+    -----------
+    data : pandas.DataFrame
+        The p_color dataset
+    """
+    print("\n" + "=" * 60)
+    print("EXPLORATORY DATA ANALYSIS: price by p_color")
+    print("=" * 60)
+
+    dependent_var = 'price'
+    group_var = 'p_color'
+
+    # Calculate descriptive statistics by species
+    print("\nDescriptive Statistics by p_color:")
+    print("-" * 45)
+
+    species_stats = data.groupby(group_var)[dependent_var].agg([
+        'count', 'mean', 'median', 'std', 'min', 'max'
+    ]).round(2)
+
+    print(species_stats)
+
+    # Calculate overall statistics
+    overall_mean = data[dependent_var].mean()
+    overall_std = data[dependent_var].std()
+    overall_n = len(data)
+
+    print(f"\nOverall Statistics:")
+    print(f"Mean body mass: {overall_mean:.2f} g")
+    print(f"Standard deviation: {overall_std:.2f} g")
+    print(f"Total sample size: {overall_n}")
+
+    # Calculate some preliminary ANOVA components for illustration
+    print(f"\nPreliminary ANOVA Concepts:")
+    print("-" * 35)
+
+    # Between-group variation (simplified illustration)
+    species_means = data.groupby(group_var)[dependent_var].mean()
+    species_n = data.groupby(group_var)[dependent_var].count()
+
+    print("p_color means:")
+    for species, mean in species_means.items():
+        n = species_n[species]
+        print(f"  {species}: {mean:.2f} g (n = {n})")
+
+    # Calculate range of means as a simple measure of between-group variation
+    mean_range = species_means.max() - species_means.min()
+    print(f"\nRange of p_color means: {mean_range:.2f} g")
+    print(f"This represents the between-group variation we'll analyze with ANOVA")
+
+    # Create comprehensive visualizations
+    fig, axes = plt.subplots(2, 3, figsize=(20, 12))
+    fig.suptitle('Exploratory Data Analysis: price by p_color', fontsize=16)
+
+    # 1. Box plot
+    sns.boxplot(data=data, x=group_var, y=dependent_var, ax=axes[0, 0])
+    axes[0, 0].set_title('Box Plot: price by p_color')
+    axes[0, 0].set_ylabel('price')
+
+    # 2. Violin plot
+    sns.violinplot(data=data, x=group_var, y=dependent_var, ax=axes[0, 1])
+    axes[0, 1].set_title('Violin Plot: price by p_color')
+    axes[0, 1].set_ylabel('price')
+
+    # 3. Strip plot with jitter
+    sns.stripplot(data=data, x=group_var, y=dependent_var, ax=axes[0, 2],
+                  alpha=0.6, size=4)
+    axes[0, 2].set_title('Strip Plot: Individual Data Points')
+    axes[0, 2].set_ylabel('price')
+
+    # 4. Histograms by p_color  
+    species_list = data[group_var].unique()
+    colors = ['skyblue', 'lightcoral', 'lightgreen']
+
+    for i, species in enumerate(species_list):
+        species_data = data[data[group_var] == species][dependent_var]
+        axes[1, 0].hist(species_data, alpha=0.7, label=species, color=colors[i % len(colors)],
+                        bins=15, density=True)
+
+    axes[1, 0].set_title('Overlapping Histograms')
+    axes[1, 0].set_xlabel('price')
+    axes[1, 0].set_ylabel('Density')
+    axes[1, 0].legend()
+
+    # 5. Mean plot with error bars (standard error)
+    means = species_stats['mean']
+    stds = species_stats['std']
+    ns = species_stats['count']
+    ses = stds / np.sqrt(ns)  # Standard errors
+
+    x_pos = range(len(means))
+    axes[1, 1].bar(x_pos, means, yerr=ses, capsize=5, alpha=0.7,
+                   color=['skyblue', 'lightcoral', 'lightgreen'])
+    axes[1, 1].set_title('Mean price with Standard Error')
+    axes[1, 1].set_xlabel('p_color')
+    axes[1, 1].set_ylabel('price')
+    axes[1, 1].set_xticks(x_pos)
+    axes[1, 1].set_xticklabels(means.index)
+
+    # Add value labels on bars
+    for i, (mean, se) in enumerate(zip(means, ses)):
+        axes[1, 1].text(i, mean + se + 50, f'{mean:.0f}', ha='center', fontweight='bold')
+
+    # 6. Q-Q plots for normality check (combined)
+    from scipy.stats import probplot
+
+    all_residuals = []
+    for species in species_list:
+        species_data = data[data[group_var] == species][dependent_var]
+        species_mean = species_data.mean()
+        residuals = species_data - species_mean
+        all_residuals.extend(residuals)
+
+    probplot(all_residuals, dist="norm", plot=axes[1, 2])
+    axes[1, 2].set_title('Q-Q Plot: Normality Check of Residuals')
+
+    plt.tight_layout()
+    plt.show()
+
+    # Additional analysis: Effect size preview
+    print(f"\nEffect Size Preview:")
+    print("-" * 25)
+
+    # Calculate total sum of squares
+    sst = np.sum((data[dependent_var] - overall_mean) ** 2)
+
+    # Calculate between-group sum of squares
+    ssb = 0
+    for species in species_list:
+        species_data = data[data[group_var] == species][dependent_var]
+        species_mean = species_data.mean()
+        species_n = len(species_data)
+        ssb += species_n * (species_mean - overall_mean) ** 2
+
+    # Calculate within-group sum of squares
+    ssw = sst - ssb
+
+    # Calculate eta squared (effect size)
+    eta_squared = ssb / sst
+
+    print(f"Total Sum of Squares (SST): {sst:,.2f}")
+    print(f"Between-group Sum of Squares (SSB): {ssb:,.2f}")
+    print(f"Within-group Sum of Squares (SSW): {ssw:,.2f}")
+    print(f"Eta squared (η²): {eta_squared:.4f}")
+
+    if eta_squared < 0.01:
+        effect_interpretation = "negligible"
+    elif eta_squared < 0.06:
+        effect_interpretation = "small"
+    elif eta_squared < 0.14:
+        effect_interpretation = "medium"
+    else:
+        effect_interpretation = "large"
+
+    print(f"Effect size interpretation: {effect_interpretation}")
+
+    return species_stats
+
+
+def check_anova_assumptions(data, dependent_var, group_var, alpha=0.05):
+    """
+    Comprehensive check of ANOVA assumptions with visualizations and statistical tests.
+
+    """
+    print("\n" + "=" * 60)
+    print("ANOVA ASSUMPTIONS CHECKING")
+    print("=" * 60)
+
+    # Fit a simple model to get residuals
+    # We'll use a simple approach: residuals = value - group mean
+    residuals = []
+    fitted_values = []
+    group_labels = []
+
+    for group in data[group_var].unique():
+        group_data = data[data[group_var] == group][dependent_var]
+        group_mean = group_data.mean()
+        group_residuals = group_data - group_mean
+
+        residuals.extend(group_residuals)
+        fitted_values.extend([group_mean] * len(group_data))
+        group_labels.extend([group] * len(group_data))
+
+    residuals = np.array(residuals)
+    fitted_values = np.array(fitted_values)
+
+    # Create a comprehensive figure for assumption checking
+    fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+    fig.suptitle('ANOVA Assumptions Checking', fontsize=16)
+
+    # 1. Normality Check: Q-Q Plot of Residuals
+    from scipy.stats import probplot
+    probplot(residuals, dist="norm", plot=axes[0, 0])
+    axes[0, 0].set_title('Q-Q Plot: Normality of Residuals')
+    axes[0, 0].grid(True, alpha=0.3)
+
+    # 2. Normality Check: Histogram of Residuals
+    axes[0, 1].hist(residuals, bins=20, density=True, alpha=0.7, color='skyblue', edgecolor='black')
+
+    # Overlay normal curve
+    mu, sigma = stats.norm.fit(residuals)
+    x = np.linspace(residuals.min(), residuals.max(), 100)
+    axes[0, 1].plot(x, stats.norm.pdf(x, mu, sigma), 'r-', linewidth=2, label='Normal fit')
+    axes[0, 1].set_title('Histogram of Residuals with Normal Curve')
+    axes[0, 1].set_xlabel('Residuals')
+    axes[0, 1].set_ylabel('Density')
+    axes[0, 1].legend()
+    axes[0, 1].grid(True, alpha=0.3)
+
+    # 3. Homogeneity of Variance: Residuals vs Fitted Values
+    axes[0, 2].scatter(fitted_values, residuals, alpha=0.6)
+    axes[0, 2].axhline(y=0, color='r', linestyle='--')
+    axes[0, 2].set_title('Residuals vs Fitted Values')
+    axes[0, 2].set_xlabel('Fitted Values')
+    axes[0, 2].set_ylabel('Residuals')
+    axes[0, 2].grid(True, alpha=0.3)
+
+    # 4. Box plot of residuals by group (homogeneity check)
+    residuals_df = pd.DataFrame({
+        'residuals': residuals,
+        'group': group_labels
+    })
+    sns.boxplot(data=residuals_df, x='group', y='residuals', ax=axes[1, 0])
+    axes[1, 0].set_title('Residuals by Group (Homogeneity Check)')
+    axes[1, 0].axhline(y=0, color='r', linestyle='--')
+    axes[1, 0].tick_params(axis='x', rotation=45)
+
+    # 5. Scale-Location plot (Square root of absolute residuals vs fitted values)
+    sqrt_abs_residuals = np.sqrt(np.abs(residuals))
+    axes[1, 1].scatter(fitted_values, sqrt_abs_residuals, alpha=0.6)
+    axes[1, 1].set_title('Scale-Location Plot')
+    axes[1, 1].set_xlabel('Fitted Values')
+    axes[1, 1].set_ylabel('√|Residuals|')
+    axes[1, 1].grid(True, alpha=0.3)
+
+    # 6. Cook's Distance (outlier detection)
+    # Simplified Cook's distance calculation
+    n = len(residuals)
+    p = len(data[group_var].unique())  # number of parameters
+    mse = np.sum(residuals**2) / (n - p)
+
+    # Leverage calculation (simplified)
+    leverage = []
+    for group in data[group_var].unique():
+        group_size = len(data[data[group_var] == group])
+        group_leverage = 1 / group_size  # Simplified leverage
+        leverage.extend([group_leverage] * group_size)
+
+    leverage = np.array(leverage)
+    cooks_d = (residuals**2 / (p * mse)) * (leverage / (1 - leverage)**2)
+
+    axes[1, 2].stem(range(len(cooks_d)), cooks_d, basefmt=" ")
+    axes[1, 2].axhline(y=4/n, color='r', linestyle='--', label=f'Threshold: 4/n = {4/n:.3f}')
+    axes[1, 2].set_title("Cook's Distance")
+    axes[1, 2].set_xlabel('Observation')
+    axes[1, 2].set_ylabel("Cook's Distance")
+    axes[1, 2].legend()
+    axes[1, 2].grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.show()
+
+    # Statistical tests for assumptions
+    print("\nStatistical Tests for Assumptions:")
+    print("-" * 40)
+
+    # 1. Normality of residuals: Shapiro-Wilk test
+    shapiro_stat, shapiro_p = stats.shapiro(residuals)
+    print(f"1. Normality of Residuals (Shapiro-Wilk Test):")
+    print(f"   Statistic = {shapiro_stat:.4f}, p-value = {shapiro_p:.6f}")
+    if shapiro_p > alpha:
+        print(f"   ✓ Residuals appear normally distributed (p > {alpha})")
+    else:
+        print(f"   ⚠ Residuals deviate from normality (p ≤ {alpha})")
+        print(f"   Consider: transformation, robust methods, or non-parametric alternatives")
+
+    # 2. Homogeneity of variance: Levene's test
+    groups = [data[data[group_var] == group][dependent_var] for group in data[group_var].unique()]
+    levene_stat, levene_p = stats.levene(*groups)
+    print(f"\n2. Homogeneity of Variance (Levene's Test):")
+    print(f"   Statistic = {levene_stat:.4f}, p-value = {levene_p:.6f}")
+    if levene_p > alpha:
+        print(f"   ✓ Variances appear equal across groups (p > {alpha})")
+    else:
+        print(f"   ⚠ Variances appear unequal (p ≤ {alpha})")
+        print(f"   Consider: Welch's ANOVA, transformation, or robust methods")
+
+    # 3. Outlier detection: Cook's distance
+    outlier_threshold = 4 / n
+    outliers = np.where(cooks_d > outlier_threshold)[0]
+    print(f"\n3. Outlier Detection (Cook's Distance > {outlier_threshold:.3f}):")
+    if len(outliers) == 0:
+        print(f"   ✓ No influential outliers detected")
+    else:
+        print(f"   ⚠ {len(outliers)} potential outliers detected at positions: {outliers}")
+        print(f"   Consider: investigating these observations or using robust methods")
+
+
+    # Summary and recommendations
+    print(f"\n" + "=" * 50)
+    print("ASSUMPTION CHECK SUMMARY")
+    print("=" * 50)
+
+    assumptions_met = 0
+
+    if shapiro_p > alpha:
+        print("✓ Normality: SATISFIED")
+        assumptions_met += 1
+    else:
+        print("⚠ Normality: VIOLATED")
+
+    if levene_p > alpha:
+        print("✓ Homogeneity of variance: SATISFIED")
+        assumptions_met += 1
+    else:
+        print("⚠ Homogeneity of variance: VIOLATED")
+
+    if len(outliers) == 0:
+        print("✓ No influential outliers: SATISFIED")
+        assumptions_met += 1
+    else:
+        print("⚠ Outliers present: ATTENTION NEEDED")
+
+    print("✓ Independence: ASSUMED (design-based)")
+
+    print(f"\nAssumptions satisfied: {assumptions_met}/3 testable assumptions")
+
+    if assumptions_met == 3:
+        print("All assumptions satisfied - ANOVA is appropriate!")
+    elif assumptions_met >= 2:
+        print("  Most assumptions satisfied - ANOVA likely robust")
+        print("   Consider reporting both parametric and non-parametric results")
+    else:
+        print(" Multiple assumptions violated - Consider alternatives:")
+        print("   • Data transformation")
+        print("   • Welch's ANOVA (for unequal variances)")
+        print("   • Kruskal-Wallis test (non-parametric)")
+        print("   • Robust ANOVA methods")
+
+    return {
+        'shapiro_p': shapiro_p,
+        'levene_p': levene_p,
+        'outliers': outliers,
+        'residuals': residuals,
+        'assumptions_met': assumptions_met
+    }
+
+
+def perform_manual_anova(data, dependent_var, group_var):
+    """
+    Perform ANOVA with manual calculations to illustrate the underlying mathematics.
+
+    Parameters:
+    -----------
+    data : pandas.DataFrame
+        The dataset
+    dependent_var : str
+        Name of the dependent variable
+    group_var : str
+        Name of the grouping variable
+    """
+    print("\n" + "=" * 60)
+    print("MANUAL ANOVA CALCULATIONS")
+    print("=" * 60)
+
+    # Basic information
+    groups = data[group_var].unique()
+    k = len(groups)  # number of groups
+    N = len(data)    # total sample size
+
+    print(f"Number of groups (k): {k}")
+    print(f"Total sample size (N): {N}")
+    print(f"Groups: {list(groups)}")
+
+    # Calculate overall mean
+    overall_mean = data[dependent_var].mean()
+    print(f"\nOverall mean: {overall_mean:.2f}")
+
+    # Calculate group statistics
+    print(f"\nGroup Statistics:")
+    print("-" * 20)
+
+    group_stats = {}
+    for group in groups:
+        group_data = data[data[group_var] == group][dependent_var]
+        group_mean = group_data.mean()
+        group_n = len(group_data)
+        group_var_calc = group_data.var(ddof=1)  # Sample variance
+
+        group_stats[group] = {
+            'mean': group_mean,
+            'n': group_n,
+            'variance': group_var_calc,
+            'data': group_data
+        }
+
+        print(f"{group}: n={group_n}, mean={group_mean:.2f}, variance={group_var_calc:.2f}")
+
+    # Step 1: Calculate Total Sum of Squares (SST)
+    sst = np.sum((data[dependent_var] - overall_mean) ** 2)
+    print(f"\nStep 1: Total Sum of Squares (SST)")
+    print(f"SST = Σ(x_i - x̄)² = {sst:.2f}")
+
+    # Step 2: Calculate Between-groups Sum of Squares (SSB)
+    ssb = 0
+    print(f"\nStep 2: Between-groups Sum of Squares (SSB)")
+    print("SSB = Σn_j(x̄_j - x̄)²")
+
+    for group in groups:
+        group_mean = group_stats[group]['mean']
+        group_n = group_stats[group]['n']
+        contribution = group_n * (group_mean - overall_mean) ** 2
+        ssb += contribution
+        print(f"  {group}: {group_n} × ({group_mean:.2f} - {overall_mean:.2f})² = {contribution:.2f}")
+
+    print(f"SSB = {ssb:.2f}")
+
+    # Step 3: Calculate Within-groups Sum of Squares (SSW)
+    ssw = sst - ssb  # Alternative: ssw = sum of individual group variances
+    print(f"\nStep 3: Within-groups Sum of Squares (SSW)")
+    print(f"SSW = SST - SSB = {sst:.2f} - {ssb:.2f} = {ssw:.2f}")
+
+    # Verify with alternative calculation
+    ssw_alt = 0
+    for group in groups:
+        group_data = group_stats[group]['data']
+        group_mean = group_stats[group]['mean']
+        ssw_alt += np.sum((group_data - group_mean) ** 2)
+
+    print(f"Verification: SSW = Σ(x_ij - x̄_j)² = {ssw_alt:.2f} ✓")
+
+    # Step 4: Calculate degrees of freedom
+    df_between = k - 1
+    df_within = N - k
+    df_total = N - 1
+
+    print(f"\nStep 4: Degrees of Freedom")
+    print(f"df_between = k - 1 = {k} - 1 = {df_between}")
+    print(f"df_within = N - k = {N} - {k} = {df_within}")
+    print(f"df_total = N - 1 = {N} - 1 = {df_total}")
+
+    # Step 5: Calculate Mean Squares
+    msb = ssb / df_between
+    msw = ssw / df_within
+
+    print(f"\nStep 5: Mean Squares")
+    print(f"MSB = SSB / df_between = {ssb:.2f} / {df_between} = {msb:.2f}")
+    print(f"MSW = SSW / df_within = {ssw:.2f} / {df_within} = {msw:.2f}")
+
+    # Step 6: Calculate F-statistic
+    f_statistic = msb / msw
+    print(f"\nStep 6: F-statistic")
+    print(f"F = MSB / MSW = {msb:.2f} / {msw:.2f} = {f_statistic:.4f}")
+
+    # Step 7: Calculate p-value
+    p_value = 1 - stats.f.cdf(f_statistic, df_between, df_within)
+
+    print(f"\nStep 7: P-value")
+    print(f"F({df_between}, {df_within}) = {f_statistic:.4f}")
+    print(f"p-value = {p_value:.6f}")
+
+    # Step 8: Calculate effect sizes
+    eta_squared = ssb / sst
+    omega_squared = (ssb - df_between * msw) / (sst + msw)
+
+    print(f"\nStep 8: Effect Sizes")
+    print(f"Eta squared (η²) = SSB / SST = {ssb:.2f} / {sst:.2f} = {eta_squared:.4f}")
+    print(f"Omega squared (ω²) = (SSB - df_between × MSW) / (SST + MSW)")
+    print(f"                  = ({ssb:.2f} - {df_between} × {msw:.2f}) / ({sst:.2f} + {msw:.2f})")
+    print(f"                  = {omega_squared:.4f}")
+
+    # Interpret effect sizes
+    def interpret_effect_size(eta_sq):
+        if eta_sq < 0.01:
+            return "negligible"
+        elif eta_sq < 0.06:
+            return "small"
+        elif eta_sq < 0.14:
+            return "medium"
+        else:
+            return "large"
+
+    eta_interpretation = interpret_effect_size(eta_squared)
+    omega_interpretation = interpret_effect_size(omega_squared)
+
+    print(f"\nEffect Size Interpretations:")
+    print(f"η² = {eta_squared:.4f} ({eta_interpretation} effect)")
+    print(f"ω² = {omega_squared:.4f} ({omega_interpretation} effect)")
+
+    # Create ANOVA table
+    print(f"\n" + "=" * 70)
+    print("ANOVA TABLE")
+    print("=" * 70)
+    print(f"{'Source':<15} {'SS':<12} {'df':<6} {'MS':<12} {'F':<10} {'p-value':<10}")
+    print("-" * 70)
+    print(f"{'Between Groups':<15} {ssb:<12.2f} {df_between:<6} {msb:<12.2f} {f_statistic:<10.4f} {p_value:<10.6f}")
+    print(f"{'Within Groups':<15} {ssw:<12.2f} {df_within:<6} {msw:<12.2f}")
+    print(f"{'Total':<15} {sst:<12.2f} {df_total:<6}")
+    print("-" * 70)
+
+    # Conclusion
+    alpha = 0.05
+    print(f"\nConclusion (α = {alpha}):")
+    if p_value < alpha:
+        print(f"✓ Reject H₀: There is a statistically significant difference between groups")
+        print(f"  F({df_between}, {df_within}) = {f_statistic:.4f}, p = {p_value:.6f}")
+        print(f"  Effect size: η² = {eta_squared:.4f} ({eta_interpretation})")
+    else:
+        print(f"✗ Fail to reject H₀: No statistically significant difference between groups")
+        print(f"  F({df_between}, {df_within}) = {f_statistic:.4f}, p = {p_value:.6f}")
+
+    return {
+        'f_statistic': f_statistic,
+        'p_value': p_value,
+        'eta_squared': eta_squared,
+        'omega_squared': omega_squared,
+        'ssb': ssb,
+        'ssw': ssw,
+        'sst': sst,
+        'msb': msb,
+        'msw': msw,
+        'df_between': df_between,
+        'df_within': df_within
+    }
+
+def perform_scipy_anova(data, dependent_var, group_var):
+    """
+    Perform ANOVA using scipy.stats for comparison with manual calculations.
+
+    """
+    print("\n" + "=" * 60)
+    print("SCIPY ANOVA (f_oneway)")
+    print("=" * 60)
+
+    # Prepare data for scipy
+    groups = data[group_var].unique()
+    group_data = [data[data[group_var] == group][dependent_var].values for group in groups]
+
+    # Perform ANOVA
+    f_stat, p_val = stats.f_oneway(*group_data)
+
+    print(f"F-statistic: {f_stat:.4f}")
+    print(f"p-value: {p_val:.6f}")
+
+    alpha = 0.05
+    if p_val < alpha:
+        print(f"Result: Statistically significant (p < {alpha})")
+    else:
+        print(f"Result: Not statistically significant (p ≥ {alpha})")
+
+    return f_stat, p_val
+
+def perform_statsmodels_anova(data, dependent_var, group_var):
+    """
+    Perform ANOVA using statsmodels for more detailed output and model diagnostics.
+
+    """
+    print("\n" + "=" * 60)
+    print("STATSMODELS ANOVA (OLS + ANOVA)")
+    print("=" * 60)
+
+    # Create formula for OLS regression
+    formula = f"{dependent_var} ~ C({group_var})"
+
+    # Fit OLS model
+    model = ols(formula, data=data).fit()
+
+    # Perform ANOVA
+    anova_table = anova_lm(model, typ=2)
+
+    print("ANOVA Table from statsmodels:")
+    print(anova_table)
+
+    # Model summary
+    print(f"\nModel Summary:")
+    print(f"R-squared: {model.rsquared:.4f}")
+    print(f"Adjusted R-squared: {model.rsquared_adj:.4f}")
+    print(f"F-statistic: {model.fvalue:.4f}")
+    print(f"p-value: {model.f_pvalue:.6f}")
+
+    return model, anova_table
+
+
+
+def visualize_anova_results(data, dependent_var, group_var, anova_results):
+    """
+    Create comprehensive visualizations of ANOVA results.
+
+    Parameters:
+    -----------
+    data : pandas.DataFrame
+        The dataset
+    dependent_var : str
+        Name of the dependent variable
+    group_var : str
+        Name of the grouping variable
+    anova_results : dict
+        Results from manual ANOVA calculation
+    """
+    print("\n" + "=" * 60)
+    print("ANOVA RESULTS VISUALIZATION")
+    print("=" * 60)
+
+    # Calculate group means and other statistics
+    group_stats = data.groupby(group_var)[dependent_var].agg([
+        'count', 'mean', 'std', 'sem'
+    ]).round(2)
+
+    groups = data[group_var].unique()
+
+    # Create comprehensive visualization
+    fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+    fig.suptitle(f'ANOVA Results: {dependent_var} by {group_var}\n' +
+                f'F({anova_results["df_between"]}, {anova_results["df_within"]}) = ' +
+                f'{anova_results["f_statistic"]:.2f}, p = {anova_results["p_value"]:.4f}, ' +
+                f'η² = {anova_results["eta_squared"]:.3f}', fontsize=14)
+
+    # 1. Box plot with individual points
+    sns.boxplot(data=data, x=group_var, y=dependent_var, ax=axes[0, 0])
+    sns.stripplot(data=data, x=group_var, y=dependent_var, ax=axes[0, 0],
+                  alpha=0.6, size=3, color='black')
+    axes[0, 0].set_title('Box Plot with Individual Points')
+    axes[0, 0].set_ylabel(f'{dependent_var}')
+
+    # 2. Mean plot with error bars (95% CI)
+    means = group_stats['mean']
+    sems = group_stats['sem']
+    ns = group_stats['count']
+
+    # Calculate 95% confidence intervals
+    t_crit = stats.t.ppf(0.975, ns - 1)  # 95% CI
+    ci_95 = t_crit * sems
+
+    x_pos = range(len(means))
+    bars = axes[0, 1].bar(x_pos, means, yerr=ci_95, capsize=5, alpha=0.7,
+                         color=['skyblue', 'lightcoral', 'lightgreen'])
+    axes[0, 1].set_title('Group Means with 95% Confidence Intervals')
+    axes[0, 1].set_xlabel(group_var)
+    axes[0, 1].set_ylabel(f'Mean {dependent_var}')
+    axes[0, 1].set_xticks(x_pos)
+    axes[0, 1].set_xticklabels(means.index)
+
+    # Add value labels on bars
+    for i, (mean, ci) in enumerate(zip(means, ci_95)):
+        axes[0, 1].text(i, mean + ci + (means.max() * 0.02), f'{mean:.0f}',
+                        ha='center', fontweight='bold')
+
+    # 3. Violin plot with quartiles
+    sns.violinplot(data=data, x=group_var, y=dependent_var, ax=axes[0, 2], inner='quartile')
+    axes[0, 2].set_title('Violin Plot (Distribution Shape)')
+    axes[0, 2].set_ylabel(f'{dependent_var}')
+
+    # 4. Residuals vs Fitted plot
+    # Calculate fitted values and residuals
+    fitted_values = []
+    residuals = []
+
+    for group in groups:
+        group_data = data[data[group_var] == group][dependent_var]
+        group_mean = group_data.mean()
+        group_residuals = group_data - group_mean
+
+        fitted_values.extend([group_mean] * len(group_data))
+        residuals.extend(group_residuals)
+
+    axes[1, 0].scatter(fitted_values, residuals, alpha=0.6)
+    axes[1, 0].axhline(y=0, color='r', linestyle='--')
+    axes[1, 0].set_title('Residuals vs Fitted Values')
+    axes[1, 0].set_xlabel('Fitted Values')
+    axes[1, 0].set_ylabel('Residuals')
+    axes[1, 0].grid(True, alpha=0.3)
+
+    # 5. Q-Q plot of residuals
+    from scipy.stats import probplot
+    probplot(residuals, dist="norm", plot=axes[1, 1])
+    axes[1, 1].set_title('Q-Q Plot of Residuals')
+    axes[1, 1].grid(True, alpha=0.3)
+
+    # 6. Effect size visualization
+    # Create a pie chart showing explained vs unexplained variance
+    explained_var = anova_results['eta_squared']
+    unexplained_var = 1 - explained_var
+
+    labels = ['Explained by Groups', 'Unexplained (Error)']
+    sizes = [explained_var, unexplained_var]
+    colors = ['lightblue', 'lightgray']
+    explode = (0.1, 0)  # explode the explained variance slice
+
+    axes[1, 2].pie(sizes, explode=explode, labels=labels, colors=colors,
+                   autopct='%1.1f%%', shadow=True, startangle=90)
+    axes[1, 2].set_title(f'Variance Explained\n(η² = {explained_var:.3f})')
+
+    plt.tight_layout()
+    plt.show()
+
+    # Print detailed group comparisons
+    print(f"\nDetailed Group Statistics:")
+    print("-" * 35)
+    print(group_stats)
+
+    # Calculate pairwise differences between means
+    print(f"\nPairwise Mean Differences:")
+    print("-" * 30)
+
+    means_dict = group_stats['mean'].to_dict()
+    for i, group1 in enumerate(groups):
+        for j, group2 in enumerate(groups):
+            if i < j:  # Only show each pair once
+                diff = means_dict[group1] - means_dict[group2]
+                print(f"{group1} - {group2}: {diff:.2f}")
+
+    # Variance decomposition summary
+    print(f"\nVariance Decomposition:")
+    print("-" * 25)
+    print(f"Total Variance (SST): {anova_results['sst']:.2f}")
+    print(f"Between-group Variance (SSB): {anova_results['ssb']:.2f} ({anova_results['eta_squared']*100:.1f}%)")
+    print(f"Within-group Variance (SSW): {anova_results['ssw']:.2f} ({(1-anova_results['eta_squared'])*100:.1f}%)")
+
+    return group_stats
+
+
+def perform_anova_power_analysis(data, dependent_var, group_var, anova_results):
+    """
+    Perform power analysis for the ANOVA results.
+
+    Parameters:
+    -----------
+    data : pandas.DataFrame
+        The dataset
+    dependent_var : str
+        Name of the dependent variable
+    group_var : str
+        Name of the grouping variable
+    anova_results : dict
+        Results from ANOVA analysis
+    """
+    print("\n" + "=" * 60)
+    print("POWER ANALYSIS FOR ANOVA")
+    print("=" * 60)
+
+    # Calculate effect size (Cohen's f)
+    eta_squared = anova_results['eta_squared']
+    cohens_f = np.sqrt(eta_squared / (1 - eta_squared))
+
+    # Get sample sizes
+    group_sizes = data.groupby(group_var).size()
+    k = len(group_sizes)  # number of groups
+    total_n = len(data)
+
+    print(f"Effect Size Calculation:")
+    print(f"η² = {eta_squared:.4f}")
+    print(f"Cohen's f = √(η² / (1 - η²)) = √({eta_squared:.4f} / {1-eta_squared:.4f}) = {cohens_f:.4f}")
+
+    # Interpret Cohen's f
+    if cohens_f < 0.10:
+        f_interpretation = "small"
+    elif cohens_f < 0.25:
+        f_interpretation = "small to medium"
+    elif cohens_f < 0.40:
+        f_interpretation = "medium to large"
+    else:
+        f_interpretation = "large"
+
+    print(f"Effect size interpretation: {f_interpretation}")
+
+    # Calculate achieved power
+    power_analysis = FTestAnovaPower()
+    achieved_power = power_analysis.power(effect_size=cohens_f, nobs=total_n, alpha=0.05, k_groups=k)
+
+    print(f"\nAchieved Power:")
+    print(f"Power = {achieved_power:.4f} ({achieved_power*100:.1f}%)")
+
+    if achieved_power >= 0.8:
+        print("✓ Adequate power (≥80%) to detect this effect size")
+    else:
+        print("⚠ Low power (<80%) - may miss true effects of this size")
+
+    # Calculate required sample size for 80% power
+    required_n = power_analysis.solve_power(effect_size=cohens_f, power=0.8, alpha=0.05, k_groups=k)
+    print(f"Required total sample size for 80% power: {int(np.ceil(required_n))}")
+    print(f"Required sample size per group: {int(np.ceil(required_n/k))}")
+
+    # Power curve visualization
+    effect_sizes = np.arange(0.1, 1.0, 0.05)
+    sample_sizes = np.arange(30, 300, 10)
+
+    # Create power curves for different effect sizes
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+
+    # Plot 1: Power vs Sample Size for different effect sizes
+    for f in [0.1, 0.25, 0.4, cohens_f]:
+        powers = [power_analysis.power(effect_size=f, nobs=n, alpha=0.05, k_groups=k)
+                 for n in sample_sizes]
+        label = f'f = {f:.2f}'
+        if f == cohens_f:
+            label += ' (Our study)'
+        ax1.plot(sample_sizes, powers, label=label, linewidth=2)
+
+    ax1.axhline(y=0.8, color='red', linestyle='--', label='80% Power')
+    ax1.axvline(x=total_n, color='gray', linestyle=':', label=f'Our sample size (n={total_n})')
+    ax1.set_xlabel('Total Sample Size')
+    ax1.set_ylabel('Statistical Power')
+    ax1.set_title('Power vs Sample Size')
+    ax1.legend()
+    ax1.grid(True, alpha=0.3)
+    ax1.set_ylim(0, 1)
+
+    # Plot 2: Power vs Effect Size for different sample sizes
+    for n in [60, 120, 240, total_n]:
+        powers = [power_analysis.power(effect_size=f, nobs=n, alpha=0.05, k_groups=k)
+                 for f in effect_sizes]
+        label = f'n = {n}'
+        if n == total_n:
+            label += ' (Our study)'
+        ax2.plot(effect_sizes, powers, label=label, linewidth=2)
+
+    ax2.axhline(y=0.8, color='red', linestyle='--', label='80% Power')
+    ax2.axvline(x=cohens_f, color='gray', linestyle=':', label=f'Our effect size (f={cohens_f:.2f})')
+    ax2.set_xlabel("Cohen's f (Effect Size)")
+    ax2.set_ylabel('Statistical Power')
+    ax2.set_title('Power vs Effect Size')
+    ax2.legend()
+    ax2.grid(True, alpha=0.3)
+    ax2.set_ylim(0, 1)
+
+    plt.suptitle('Power Analysis for ANOVA', fontsize=14)
+    plt.tight_layout()
+    plt.show()
+
+    # Sample size recommendations
+    print(f"\nSample Size Recommendations:")
+    print("-" * 35)
+
+    effect_scenarios = [
+        ("Small effect (f=0.1)", 0.1),
+        ("Medium effect (f=0.25)", 0.25),
+        ("Large effect (f=0.4)", 0.4),
+        ("Observed effect", cohens_f)
+    ]
+
+    for scenario, f_val in effect_scenarios:
+        req_n = power_analysis.solve_power(effect_size=f_val, power=0.8, alpha=0.05, k_groups=k)
+        req_n_per_group = int(np.ceil(req_n / k))
+        print(f"{scenario:<20}: {int(np.ceil(req_n)):>3} total ({req_n_per_group:>2} per group)")
+
+    return {
+        'cohens_f': cohens_f,
+        'achieved_power': achieved_power,
+        'required_n': required_n
+    }
+
+
+
+def perform_tukey_hsd(data, dependent_var, group_var, alpha=0.05):
+    """
+    Perform Tukey's Honestly Significant Difference test for post-hoc comparisons.
+
+    Parameters:
+    -----------
+    data : pandas.DataFrame
+        The dataset
+    dependent_var : str
+        Name of the dependent variable
+    group_var : str
+        Name of the grouping variable
+    alpha : float
+        Significance level
+    """
+    print("\n" + "=" * 60)
+    print("TUKEY'S HSD POST-HOC TEST")
+    print("=" * 60)
+
+    # Perform Tukey's HSD test
+    tukey_results = pairwise_tukeyhsd(data[dependent_var], data[group_var], alpha=alpha)
+
+    # Print results
+    print("Tukey's HSD Results:")
+    print(tukey_results)
+
+    # Create a more detailed summary
+    print(f"\nDetailed Pairwise Comparisons (α = {alpha}):")
+    print("-" * 50)
+
+    # Extract results for detailed reporting - Updated for newer statsmodels versions
+    groups = tukey_results.groupsunique
+
+    # Create results summary - Updated approach
+    comparison_results = []
+
+    # Access the summary data differently based on statsmodels version
+    try:
+        # Try newer format first
+        summary_data = tukey_results.summary().data[1:]  # Skip header row
+
+        for row in summary_data:
+            group1, group2, meandiff, p_adj, lower, upper, reject = row
+            comparison_results.append({
+                'Group 1': group1,
+                'Group 2': group2,
+                'Mean Diff': float(meandiff),
+                'p-adj': float(p_adj),
+                'Lower CI': float(lower),
+                'Upper CI': float(upper),
+                'Significant': bool(reject)
+            })
+
+            significance = "Yes" if reject else "No"
+            print(f"{group1} vs {group2}:")
+            print(f"  Mean difference: {float(meandiff):.2f}")
+            print(f"  95% CI: [{float(lower):.2f}, {float(upper):.2f}]")
+            print(f"  Adjusted p-value: {float(p_adj):.4f}")
+            print(f"  Significant: {significance}")
+            print()
+
+    except (AttributeError, IndexError, TypeError):
+        # Fallback for older versions or different structure
+        print("Using alternative method to extract Tukey results...")
+
+        # Manual pairwise comparisons as fallback
+        from scipy.stats import ttest_ind
+        from statsmodels.stats.multitest import multipletests
+
+        groups_list = list(groups)
+        group_pairs = [(groups_list[i], groups_list[j])
+                      for i in range(len(groups_list))
+                      for j in range(i+1, len(groups_list))]
+
+        p_values = []
+        mean_diffs = []
+
+        for group1, group2 in group_pairs:
+            data1 = data[data[group_var] == group1][dependent_var]
+            data2 = data[data[group_var] == group2][dependent_var]
+
+            _, p_val = ttest_ind(data1, data2)
+            mean_diff = data1.mean() - data2.mean()
+
+            p_values.append(p_val)
+            mean_diffs.append(mean_diff)
+
+        # Apply Tukey correction (approximation)
+        rejected, p_adjusted, _, _ = multipletests(p_values, method='holm')
+
+        for i, (group1, group2) in enumerate(group_pairs):
+            data1 = data[data[group_var] == group1][dependent_var]
+            data2 = data[data[group_var] == group2][dependent_var]
+
+            # Calculate confidence interval (approximation)
+            mean_diff = mean_diffs[i]
+            pooled_std = np.sqrt((data1.var() + data2.var()) / 2)
+            se = pooled_std * np.sqrt(1/len(data1) + 1/len(data2))
+            t_crit = stats.t.ppf(0.975, len(data1) + len(data2) - 2)
+
+            lower_ci = mean_diff - t_crit * se
+            upper_ci = mean_diff + t_crit * se
+
+            comparison_results.append({
+                'Group 1': group1,
+                'Group 2': group2,
+                'Mean Diff': mean_diff,
+                'p-adj': p_adjusted[i],
+                'Lower CI': lower_ci,
+                'Upper CI': upper_ci,
+                'Significant': rejected[i]
+            })
+
+            significance = "Yes" if rejected[i] else "No"
+            print(f"{group1} vs {group2}:")
+            print(f"  Mean difference: {mean_diff:.2f}")
+            print(f"  95% CI: [{lower_ci:.2f}, {upper_ci:.2f}]")
+            print(f"  Adjusted p-value: {p_adjusted[i]:.4f}")
+            print(f"  Significant: {significance}")
+            print()
+
+    # Create visualization of Tukey results
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 6))
+
+    # Plot 1: Tukey HSD plot
+    try:
+        tukey_results.plot_simultaneous(ax=ax1)
+        ax1.set_title("Tukey's HSD: Simultaneous Confidence Intervals")
+    except:
+        # Fallback visualization if plot_simultaneous doesn't work
+        group_means = data.groupby(group_var)[dependent_var].mean()
+        group_sems = data.groupby(group_var)[dependent_var].sem()
+
+        x_pos = range(len(group_means))
+        ax1.bar(x_pos, group_means, yerr=group_sems*1.96, capsize=5, alpha=0.7)
+        ax1.set_title("Group Means with 95% CI")
+        ax1.set_ylabel(dependent_var)
+        ax1.set_xticks(x_pos)
+        ax1.set_xticklabels(group_means.index)
+
+    # Plot 2: Pairwise comparison matrix
+    groups_list = list(groups)
+    n_groups = len(groups_list)
+    comparison_matrix = np.zeros((n_groups, n_groups))
+
+    for result in comparison_results:
+        i = groups_list.index(result['Group 1'])
+        j = groups_list.index(result['Group 2'])
+        comparison_matrix[i, j] = 1 if result['Significant'] else 0
+        comparison_matrix[j, i] = 1 if result['Significant'] else 0
+
+    # Create heatmap
+    mask = np.triu(np.ones_like(comparison_matrix, dtype=bool), k=1)
+    # Convert to integers to avoid float formatting issues
+    comparison_matrix = comparison_matrix.astype(int)
+    sns.heatmap(comparison_matrix, mask=mask, annot=True, fmt='d',
+                xticklabels=groups_list, yticklabels=groups_list,
+                cmap='RdBu_r', center=0.5, ax=ax2, cbar_kws={'label': 'Significant Difference'})
+    ax2.set_title('Pairwise Significance Matrix')
+
+    plt.tight_layout()
+    plt.show()
+
+    return tukey_results, comparison_results
+
+def perform_multiple_comparisons(data, dependent_var, group_var):
+    """
+    Compare different post-hoc test methods.
+
+    Parameters:
+    -----------
+    data : pandas.DataFrame
+        The dataset
+    dependent_var : str
+        Name of the dependent variable
+    group_var : str
+        Name of the grouping variable
+    """
+    print("\n" + "=" * 60)
+    print("COMPARISON OF POST-HOC METHODS")
+    print("=" * 60)
+
+    from scipy.stats import ttest_ind
+    from statsmodels.stats.multitest import multipletests
+
+    # Get all unique groups
+    groups = data[group_var].unique()
+    group_pairs = list(combinations(groups, 2))
+
+    # Perform pairwise t-tests
+    t_stats = []
+    p_values = []
+    mean_diffs = []
+
+    print("Pairwise t-tests (unadjusted):")
+    print("-" * 35)
+
+    for group1, group2 in group_pairs:
+        data1 = data[data[group_var] == group1][dependent_var]
+        data2 = data[data[group_var] == group2][dependent_var]
+
+        t_stat, p_val = ttest_ind(data1, data2)
+        mean_diff = data1.mean() - data2.mean()
+
+        t_stats.append(t_stat)
+        p_values.append(p_val)
+        mean_diffs.append(mean_diff)
+
+        print(f"{group1} vs {group2}: t = {t_stat:.3f}, p = {p_val:.4f}")
+
+    # Apply different multiple comparison corrections
+    corrections = {
+        'Bonferroni': 'bonferroni',
+        'Holm-Sidak': 'holm',
+        'FDR (Benjamini-Hochberg)': 'fdr_bh'
+    }
+
+    print(f"\nMultiple Comparisons Corrections:")
+    print("-" * 40)
+
+    comparison_summary = pd.DataFrame({
+        'Comparison': [f"{pair[0]} vs {pair[1]}" for pair in group_pairs],
+        'Mean Diff': mean_diffs,
+        'Unadjusted p': p_values
+    })
+
+    for method_name, method_code in corrections.items():
+        rejected, p_adjusted, _, _ = multipletests(p_values, method=method_code)
+        comparison_summary[f'{method_name} p'] = p_adjusted
+        comparison_summary[f'{method_name} Sig'] = rejected
+
+    print(comparison_summary.round(4))
+
+    # Visualize comparison
+    fig, ax = plt.subplots(figsize=(20, 8))
+
+    x_pos = np.arange(len(group_pairs))
+    width = 0.15
+
+    # Plot unadjusted p-values
+    ax.bar(x_pos - width*1.5, p_values, width, label='Unadjusted', alpha=0.8)
+
+    # Plot adjusted p-values
+    colors = ['orange', 'green', 'red']
+    for i, (method_name, method_code) in enumerate(corrections.items()):
+        _, p_adjusted, _, _ = multipletests(p_values, method=method_code)
+        ax.bar(x_pos - width/2 + i*width, p_adjusted, width,
+               label=method_name, alpha=0.8, color=colors[i])
+
+    ax.axhline(y=0.05, color='red', linestyle='--', label='α = 0.05')
+    ax.set_xlabel('Pairwise Comparisons')
+    ax.set_ylabel('p-value')
+    ax.set_title('Comparison of Multiple Testing Corrections')
+    ax.set_xticks(x_pos)
+    ax.set_xticklabels([f"{pair[0]}\nvs\n{pair[1]}" for pair in group_pairs])
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.show()
+
+    return comparison_summary
+    
+
+def perform_kruskal_wallis(data, dependent_var, group_var, manual_results):
+    """
+    Perform Kruskal-Wallis test as non-parametric alternative to ANOVA.
+
+    Parameters:
+    -----------
+    data : pandas.DataFrame
+        The dataset
+    dependent_var : str
+        Name of the dependent variable
+    group_var : str
+        Name of the grouping variable
+    """
+    print("\n" + "=" * 60)
+    print("KRUSKAL-WALLIS TEST (Non-parametric ANOVA)")
+    print("=" * 60)
+
+    # Prepare data
+    groups = data[group_var].unique()
+    group_data = [data[data[group_var] == group][dependent_var].values for group in groups]
+
+    # Perform Kruskal-Wallis test
+    h_statistic, p_value = stats.kruskal(*group_data)
+
+    # Calculate group statistics (medians, ranks)
+    print("Group Statistics:")
+    print("-" * 20)
+
+    all_data = data[dependent_var].values
+    all_ranks = stats.rankdata(all_data)
+
+    group_stats = {}
+    start_idx = 0
+
+    for i, group in enumerate(groups):
+        group_size = len(group_data[i])
+        group_ranks = all_ranks[start_idx:start_idx + group_size]
+
+        group_stats[group] = {
+            'n': group_size,
+            'median': np.median(group_data[i]),
+            'mean_rank': np.mean(group_ranks),
+            'sum_ranks': np.sum(group_ranks)
+        }
+
+        print(f"{group}: n={group_size}, median={np.median(group_data[i]):.1f}, mean rank={np.mean(group_ranks):.1f}")
+        start_idx += group_size
+
+    # Calculate effect size (eta squared for Kruskal-Wallis)
+    n = len(all_data)
+    k = len(groups)
+    eta_squared_kw = (h_statistic - k + 1) / (n - k)
+
+    print(f"\nKruskal-Wallis Test Results:")
+    print(f"H-statistic: {h_statistic:.4f}")
+    print(f"p-value: {p_value:.6f}")
+    print(f"Effect size (η²): {eta_squared_kw:.4f}")
+
+    # Interpretation
+    alpha = 0.05
+    if p_value < alpha:
+        print(f"✓ Significant difference between groups (p < {alpha})")
+        print("At least one group has a different distribution")
+    else:
+        print(f"✗ No significant difference between groups (p ≥ {alpha})")
+
+    # Compare with parametric ANOVA
+    print(f"\nComparison with Parametric ANOVA:")
+    print("-" * 35)
+    print(f"{'Test':<20} {'Statistic':<12} {'p-value':<12} {'Effect Size':<12}")
+    print("-" * 60)
+    print(f"{'ANOVA (F-test)':<20} {manual_results['f_statistic']:<12.4f} {manual_results['p_value']:<12.6f} {manual_results['eta_squared']:<12.4f}")
+    print(f"{'Kruskal-Wallis':<20} {h_statistic:<12.4f} {p_value:<12.6f} {eta_squared_kw:<12.4f}")
+
+    # Determine agreement
+    both_significant = (manual_results['p_value'] < alpha) and (p_value < alpha)
+    both_nonsignificant = (manual_results['p_value'] >= alpha) and (p_value >= alpha)
+
+    if both_significant or both_nonsignificant:
+        print("✓ Both tests reach the same conclusion")
+    else:
+        print("⚠ Tests disagree - consider assumptions and data characteristics")
+
+    # Visualization
+    fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+    fig.suptitle('Kruskal-Wallis Test Results', fontsize=14)
+
+    # 1. Box plot (same data, different interpretation)
+    sns.boxplot(data=data, x=group_var, y=dependent_var, ax=axes[0, 0])
+    axes[0, 0].set_title('Box Plot: Focus on Medians')
+    axes[0, 0].set_ylabel(dependent_var)
+
+    # Add median values as text
+    for i, group in enumerate(groups):
+        median_val = group_stats[group]['median']
+        axes[0, 0].text(i, median_val, f'{median_val:.0f}',
+                       ha='center', va='bottom', fontweight='bold', color='red')
+
+    # 2. Rank sums by group
+    group_names = list(group_stats.keys())
+    rank_sums = [group_stats[group]['sum_ranks'] for group in group_names]
+
+    axes[0, 1].bar(group_names, rank_sums, alpha=0.7, color=['skyblue', 'lightcoral', 'lightgreen'])
+    axes[0, 1].set_title('Sum of Ranks by Group')
+    axes[0, 1].set_ylabel('Sum of Ranks')
+
+    # Add value labels
+    for i, sum_rank in enumerate(rank_sums):
+        axes[0, 1].text(i, sum_rank + max(rank_sums)*0.01, f'{sum_rank:.0f}',
+                       ha='center', fontweight='bold')
+
+    # 3. Mean ranks comparison
+    mean_ranks = [group_stats[group]['mean_rank'] for group in group_names]
+
+    axes[1, 0].bar(group_names, mean_ranks, alpha=0.7, color=['skyblue', 'lightcoral', 'lightgreen'])
+    axes[1, 0].set_title('Mean Ranks by Group')
+    axes[1, 0].set_ylabel('Mean Rank')
+
+    # Add value labels
+    for i, mean_rank in enumerate(mean_ranks):
+        axes[1, 0].text(i, mean_rank + max(mean_ranks)*0.01, f'{mean_rank:.1f}',
+                       ha='center', fontweight='bold')
+
+    # 4. Comparison of test statistics
+    test_names = ['ANOVA\n(F-statistic)', 'Kruskal-Wallis\n(H-statistic)']
+
+    # Normalize statistics for comparison (divide by their critical values)
+    f_critical = stats.f.ppf(0.95, manual_results['df_between'], manual_results['df_within'])
+    h_critical = stats.chi2.ppf(0.95, k-1)  # Kruskal-Wallis uses chi-square distribution
+
+    normalized_stats = [
+        manual_results['f_statistic'] / f_critical,
+        h_statistic / h_critical
+    ]
+
+    colors = ['blue', 'orange']
+    bars = axes[1, 1].bar(test_names, normalized_stats, color=colors, alpha=0.7)
+    axes[1, 1].axhline(y=1, color='red', linestyle='--', label='Critical threshold')
+    axes[1, 1].set_title('Normalized Test Statistics')
+    axes[1, 1].set_ylabel('Statistic / Critical Value')
+    axes[1, 1].legend()
+
+    # Add value labels
+    for i, (bar, stat) in enumerate(zip(bars, normalized_stats)):
+        axes[1, 1].text(bar.get_x() + bar.get_width()/2, stat + 0.05,
+                       f'{stat:.2f}', ha='center', fontweight='bold')
+
+    plt.tight_layout()
+    plt.show()
+
+    return h_statistic, p_value, eta_squared_kw, group_stats
+
+
+
+def create_comprehensive_summary(data, dependent_var, group_var, manual_results, kw_results,assumption_results):
+    """
+    Create a comprehensive summary of all analyses performed.
+
+    Parameters:
+    -----------
+    data : pandas.DataFrame
+        The dataset
+    dependent_var : str
+        Name of the dependent variable
+    group_var : str
+        Name of the grouping variable
+    manual_results : dict
+        ANOVA results
+    kw_results : tuple
+        Kruskal-Wallis results (h, p, eta_squared, group_stats)
+    """
+    print("\n" + "=" * 80)
+    print("COMPREHENSIVE ANALYSIS SUMMARY")
+    print("=" * 80)
+
+    h_stat, kw_p, kw_eta, kw_group_stats = kw_results
+
+    # Dataset summary
+    groups = data[group_var].unique()
+    group_sizes = data.groupby(group_var).size()
+
+    print(f"Dataset: {len(data)} observations across {len(groups)} groups")
+    print(f"Groups: {', '.join(groups)}")
+    print(f"Group sizes: {dict(group_sizes)}")
+
+    # Research question
+    print(f"\nResearch Question:")
+    print(f"Do the {len(groups)} groups differ significantly in {dependent_var}?")
+
+    # Hypotheses
+    print(f"\nHypotheses:")
+    print(f"H₀: μ₁ = μ₂ = μ₃ (all group means are equal)")
+    print(f"H₁: At least one group mean differs from the others")
+
+    # Assumption check summary
+    print(f"\nAssumption Check Summary:")
+    print(f"✓ Independence: Satisfied (study design)")
+    print(f"✓ Normality: {'Satisfied' if assumption_results['shapiro_p'] > 0.05 else 'Questionable'} (Shapiro-Wilk p = {assumption_results['shapiro_p']:.4f})")
+    print(f"✓ Homogeneity: {'Satisfied' if assumption_results['levene_p'] > 0.05 else 'Questionable'} (Levene p = {assumption_results['levene_p']:.4f})")
+    outlier_count = len(assumption_results['outliers'])
+    outlier_text = 'None detected' if outlier_count == 0 else f'{outlier_count} detected'
+    print(f"✓ Outliers: {outlier_text}")
+
+    # Main results
+    print(f"\nMain Results:")
+    print("-" * 15)
+
+    # ANOVA results
+    print(f"One-way ANOVA:")
+    print(f"  F({manual_results['df_between']}, {manual_results['df_within']}) = {manual_results['f_statistic']:.3f}")
+    print(f"  p-value = {manual_results['p_value']:.6f}")
+    print(f"  Effect size (η²) = {manual_results['eta_squared']:.3f}")
+
+    # Kruskal-Wallis results
+    print(f"\nKruskal-Wallis Test:")
+    print(f"  H({len(groups)-1}) = {h_stat:.3f}")
+    print(f"  p-value = {kw_p:.6f}")
+    print(f"  Effect size (η²) = {kw_eta:.3f}")
+
+    # Conclusion
+    alpha = 0.05
+    anova_significant = manual_results['p_value'] < alpha
+    kw_significant = kw_p < alpha
+
+    print(f"\nConclusion:")
+    if anova_significant and kw_significant:
+        print(f"✓ Both parametric and non-parametric tests indicate significant differences")
+        print(f"  Strong evidence that groups differ in {dependent_var}")
+    elif anova_significant or kw_significant:
+        print(f"⚡ Tests disagree - one significant, one not")
+        print(f"  Consider assumption violations and effect size")
+    else:
+        print(f"✗ Neither test found significant differences")
+        print(f"  No evidence that groups differ in {dependent_var}")
+
+    # Effect size interpretation
+    eta_interpretation = "negligible" if manual_results['eta_squared'] < 0.01 else \
+                        "small" if manual_results['eta_squared'] < 0.06 else \
+                        "medium" if manual_results['eta_squared'] < 0.14 else "large"
+
+    print(f"\nEffect Size Interpretation:")
+    print(f"η² = {manual_results['eta_squared']:.3f} represents a {eta_interpretation} effect")
+    print(f"Approximately {manual_results['eta_squared']*100:.1f}% of variance in {dependent_var} is explained by group membership")
+
+    # Power analysis summary
+    if 'power_results' in globals():
+        print(f"\nPower Analysis:")
+        print(f"Achieved power: {power_results['achieved_power']:.3f} ({power_results['achieved_power']*100:.1f}%)")
+        print(f"Cohen's f: {power_results['cohens_f']:.3f}")
+        if power_results['achieved_power'] >= 0.8:
+            print(f"✓ Adequate power to detect this effect size")
+        else:
+            print(f"⚠ Low power - consider larger sample size")
+
+    # Post-hoc summary (if applicable)
+    if anova_significant and 'tukey_comparisons' in globals():
+        print(f"\nPost-hoc Test Summary (Tukey's HSD):")
+        sig_comparisons = [comp for comp in tukey_comparisons if comp['Significant']]
+
+        if sig_comparisons:
+            print(f"Significant pairwise differences:")
+            for comp in sig_comparisons:
+                print(f"  {comp['Group 1']} vs {comp['Group 2']}: diff = {comp['Mean Diff']:.2f}, p = {comp['p-adj']:.4f}")
+        else:
+            print(f"  No significant pairwise differences found")
+
+    # Create final summary visualization
+    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+    fig.suptitle(f'Final Summary: {dependent_var} by {group_var}', fontsize=16)
+
+    # 1. Group means with error bars and significance
+    group_means = data.groupby(group_var)[dependent_var].mean()
+    group_sems = data.groupby(group_var)[dependent_var].sem()
+
+    bars = axes[0, 0].bar(range(len(group_means)), group_means,
+                         yerr=group_sems*1.96, capsize=5, alpha=0.7,
+                         color=['skyblue', 'lightcoral', 'lightgreen'])
+    axes[0, 0].set_title(f'Group Means ± 95% CI\nANOVA: F = {manual_results["f_statistic"]:.2f}, p = {manual_results["p_value"]:.4f}')
+    axes[0, 0].set_ylabel(f'Mean {dependent_var}')
+    axes[0, 0].set_xticks(range(len(group_means)))
+    axes[0, 0].set_xticklabels(group_means.index)
+
+    # Add significance indicator
+    if anova_significant:
+        axes[0, 0].text(0.5, 0.95, '***' if manual_results['p_value'] < 0.001 else
+                       '**' if manual_results['p_value'] < 0.01 else '*',
+                       transform=axes[0, 0].transAxes, ha='center', fontsize=20)
+
+    # 2. Effect size comparison
+    effect_sizes = [manual_results['eta_squared'], kw_eta]
+    test_names = ['ANOVA\n(η²)', 'Kruskal-Wallis\n(η²)']
+
+    axes[0, 1].bar(test_names, effect_sizes, color=['blue', 'orange'], alpha=0.7)
+    axes[0, 1].set_title('Effect Sizes Comparison')
+    axes[0, 1].set_ylabel('Effect Size (η²)')
+
+    # Add interpretation lines
+    axes[0, 1].axhline(y=0.01, color='green', linestyle='--', alpha=0.5, label='Small (0.01)')
+    axes[0, 1].axhline(y=0.06, color='orange', linestyle='--', alpha=0.5, label='Medium (0.06)')
+    axes[0, 1].axhline(y=0.14, color='red', linestyle='--', alpha=0.5, label='Large (0.14)')
+    axes[0, 1].legend(loc='upper right')
+
+    # 3. Box plot with statistical annotation
+    sns.boxplot(data=data, x=group_var, y=dependent_var, ax=axes[1, 0])
+    axes[1, 0].set_title('Distribution by Group')
+
+    # 4. Summary statistics table as text
+    axes[1, 1].axis('off')
+
+    # Create summary table
+    summary_stats = data.groupby(group_var)[dependent_var].agg(['count', 'mean', 'std']).round(2)
+
+    table_text = "Summary Statistics\n" + "="*20 + "\n"
+    table_text += f"{'Group':<12} {'n':<5} {'Mean':<8} {'SD':<8}\n"
+    table_text += "-"*35 + "\n"
+
+    for group, stats in summary_stats.iterrows():
+        table_text += f"{group:<12} {stats['count']:<5.0f} {stats['mean']:<8.1f} {stats['std']:<8.1f}\n"
+
+    table_text += "\nTest Results\n" + "="*15 + "\n"
+    table_text += f"ANOVA: F = {manual_results['f_statistic']:.3f}, p = {manual_results['p_value']:.4f}\n"
+    table_text += f"Kruskal-Wallis: H = {h_stat:.3f}, p = {kw_p:.4f}\n"
+    table_text += f"Effect size: η² = {manual_results['eta_squared']:.3f}\n"
+
+    axes[1, 1].text(0.1, 0.9, table_text, transform=axes[1, 1].transAxes,
+                   fontfamily='monospace', fontsize=10, verticalalignment='top')
+
+    plt.tight_layout()
+    plt.show()
+
+
+
+def generate_report_text(data, dependent_var, group_var, manual_results, assumption_results):
+    """
+    Generate a properly formatted results section for academic reporting.
+    """
+    print("\n" + "=" * 80)
+    print("SAMPLE RESULTS SECTION FOR ACADEMIC REPORTING")
+    print("=" * 80)
+
+    groups = data[group_var].unique()
+    group_sizes = data.groupby(group_var).size()
+    group_means = data.groupby(group_var)[dependent_var].agg(['mean', 'std'])
+
+    # Sample sizes text
+    n_text = ", ".join([f"n = {size}" for size in group_sizes])
+
+    # Format group means and SDs
+    means_text = []
+    for group in groups:
+        mean_val = group_means.loc[group, 'mean']
+        std_val = group_means.loc[group, 'std']
+        means_text.append(f"{group} (M = {mean_val:.2f}, SD = {std_val:.2f})")
+
+    # Assumption check results
+    normality_text = "met" if assumption_results['shapiro_p'] > 0.05 else "violated"
+    variance_text = "met" if assumption_results['levene_p'] > 0.05 else "violated"
+
+    # Significance result
+    if manual_results['p_value'] < 0.001:
+        sig_text = "statistically significant"
+        p_text = "p < .001"
+    elif manual_results['p_value'] < 0.05:
+        sig_text = "statistically significant"
+        p_text = f"p = {manual_results['p_value']:.3f}"
+    else:
+        sig_text = "non-significant"
+        p_text = f"p = {manual_results['p_value']:.3f}"
+
+    # Effect size interpretation
+    eta_sq = manual_results['eta_squared']
+    if eta_sq < 0.01:
+        effect_text = "negligible"
+    elif eta_sq < 0.06:
+        effect_text = "small"
+    elif eta_sq < 0.14:
+        effect_text = "medium"
+    else:
+        effect_text = "large"
+
+    # Generate the report - using regular string formatting to avoid f-string issues
+    dependent_var_clean = dependent_var.replace('_', ' ')
+    groups_text = ', '.join(groups[:-1]) + f", and {groups[-1]}"
+
+    report = f"""
+METHOD
+
+A one-way analysis of variance (ANOVA) was conducted to compare {dependent_var_clean}
+across three penguin species: {groups_text} ({n_text} respectively).
+Prior to analysis, assumptions of ANOVA were evaluated. The assumption of normality was {normality_text}
+based on Shapiro-Wilk tests of residuals (p = {assumption_results['shapiro_p']:.3f}). Levene's test
+indicated that the assumption of homogeneity of variance was {variance_text},
+F({len(groups)-1}, {len(data)-len(groups)}) = {assumption_results.get('levene_stat', 0):.3f},
+p = {assumption_results['levene_p']:.3f}.
+
+RESULTS
+
+There was a {sig_text} difference in {dependent_var_clean} between the penguin species,
+F({manual_results['df_between']}, {manual_results['df_within']}) = {manual_results['f_statistic']:.3f},
+{p_text}, η² = {eta_sq:.3f}, indicating a {effect_text} effect.
+
+Descriptive statistics revealed the following group means: {'; '.join(means_text)}.
+"""
+
+    # Add post-hoc results if applicable
+    if manual_results['p_value'] < 0.05 and 'tukey_comparisons' in globals():
+        report += "\nPost-hoc comparisons using Tukey's HSD test revealed the following significant differences:\n"
+
+        sig_comparisons = [comp for comp in tukey_comparisons if comp['Significant']]
+        if sig_comparisons:
+            for comp in sig_comparisons:
+                report += f"• {comp['Group 1']} vs {comp['Group 2']}: Mean difference = {comp['Mean Diff']:.2f}, "
+                report += f"95% CI [{comp['Lower CI']:.2f}, {comp['Upper CI']:.2f}], p = {comp['p-adj']:.3f}\n"
+        else:
+            report += "No pairwise comparisons reached statistical significance.\n"
+
+    print(report)
+
+    return report
+
+
+
+###########################################
+from scipy.stats import pearsonr, spearmanr, kendalltau
+import statsmodels.api as sm
+from statsmodels.stats.correlation_tools import corr_nearest, corr_clipped
+import warnings
+from itertools import combinations
+import requests
+from io import StringIO
+
+from sklearn.preprocessing import RobustScaler, StandardScaler
+from sklearn.linear_model import LinearRegression
+
+from scipy.stats import shapiro
+from scipy import stats
+from scipy.cluster.hierarchy import dendrogram, linkage, fcluster
+from scipy.spatial.distance import squareform
+from statsmodels.stats.multitest import multipletests
+from sklearn.utils import resample
+import math
+
+from statsmodels.formula.api import ols
+from statsmodels.stats.anova import anova_lm
+from statsmodels.stats.multicomp import pairwise_tukeyhsd
+from statsmodels.stats.power import FTestAnovaPower
+import warnings
+from itertools import combinations
+import requests
+from io import StringIO
+
+# Suppress warnings
+warnings.filterwarnings('ignore')
+
+# Set visualization style consistent with previous tutorials
+sns.set(style="whitegrid")
+plt.rcParams['figure.figsize'] = (12, 8)
+plt.rcParams['font.size'] = 12
+
+import statsmodels.api as sm
+from statsmodels.formula.api import ols
+from statsmodels.stats.power import TTestIndPower, TTestPower
+import warnings
+from scipy.stats import chi2_contingency
+from scipy.stats import mannwhitneyu, wilcoxon, ranksums
+from scipy.stats import fisher_exact
+from scipy.stats import median_test
+from scipy.stats import binomtest  # For sign test
+
+# Suppress warnings
+warnings.filterwarnings('ignore')
+###########################################
+
+def analyze_dimensionality(data, feature_names, target):
+    import numpy as np
+    import pandas as pd
+
+    df_temp = pd.DataFrame(data, columns=feature_names)
+
+    n_samples, n_features = df_temp.shape
+
+    print(f"\nDimensionality Analysis:")
+    print(f"Features: {n_features}, Samples: {n_samples}")
+    print(f"Sample-to-feature ratio: {n_samples/n_features:.2f}")
+
+    # Feature scale analysis
+    feature_scales = df_temp.max() - df_temp.min()
+    min_scale = feature_scales.min()
+    scale_ratio = feature_scales.max() / min_scale if min_scale != 0 else np.inf
+
+    print(f"\nFeature Scale Analysis:")
+    print(f"Scale ratio (max/min): {scale_ratio:.2f}")
+    if scale_ratio > 100:
+        print("Large scale differences → standardization recommended")
+
+    # Correlation analysis
+    corr_matrix = df_temp.corr()
+    upper_triangle = np.triu(corr_matrix, k=1)
+    high_corr_count = np.sum(np.abs(upper_triangle) > 0.8)
+    total_pairs = (n_features * (n_features - 1)) // 2
+
+    print(f"\nCorrelation Analysis:")
+    print(f"High correlations (|r| > 0.8): {high_corr_count} ({high_corr_count/total_pairs*100:.1f}%)")
+
+    if high_corr_count > total_pairs * 0.1:
+        print("High redundancy detected → good candidate for PCA")
+
+    # 🔥 Target relationship (NEW)
+    target_corr = df_temp.corrwith(target)
+
+    print(f"\nTop features correlated with target:")
+    print(target_corr.abs().sort_values(ascending=False).head(5))
+
+    return corr_matrix, scale_ratio, high_corr_count, target_corr
+
+
+
+def visualize_data_structure(df, feature_names):
+    """Visualize basic data structure and relationships."""
+    fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+    fig.suptitle('Breast Cancer Dataset: Data Structure', fontsize=14)
+
+    # Feature scales (first 10 features)
+    features_subset = list(feature_names[:10])
+    means = [df[feat].mean() for feat in features_subset]
+    stds = [df[feat].std() for feat in features_subset]
+
+    x_pos = np.arange(len(features_subset))
+    axes[0, 0].bar(x_pos, means, yerr=stds, alpha=0.7, capsize=5)
+    axes[0, 0].set_xticks(x_pos)
+    axes[0, 0].set_xticklabels([name.replace('mean ', '')[:8] for name in features_subset],
+                               rotation=45, ha='right')
+    axes[0, 0].set_title('Feature Scales (First 10 Features)')
+    axes[0, 0].set_ylabel('Value')
+
+    # Correlation heatmap
+    corr_subset = df[list(feature_names[:15])].corr()
+    sns.heatmap(corr_subset, annot=True, annot_kws={"size": 8}, cmap='RdBu_r', center=0,
+                square=True, ax=axes[0, 1], cbar_kws={'shrink': 0.8})
+    axes[0, 1].set_title('Correlation Matrix (First 15 Features)')
+
+    # Distribution by diagnosis
+    axes[1, 0].hist(df[df['p_color'] == 'red']['price'],
+                    alpha=0.5, label='red', bins=20, color='red')
+    axes[1, 0].hist(df[df['p_color'] == 'green']['price'],
+                    alpha=0.7, label='green', bins=20, color='lightgreen')
+    axes[1, 0].hist(df[df['p_color'] == 'yellow']['price'],
+                    alpha=0.7, label='yellow', bins=20, color='lightyellow')
+    axes[1, 0].set_xlabel('price')
+    axes[1, 0].set_ylabel('Frequency')
+    axes[1, 0].set_title('Feature Distribution by p_color')
+    axes[1, 0].legend()
+
+    # 2D feature relationship
+    sns.scatterplot(data=df, x='total_volume', y='price',
+                    hue='p_color', alpha=0.7, ax=axes[1, 1])
+    axes[1, 1].set_title('2D Feature Relationship')
+
+    plt.tight_layout()
+    plt.show()
+
+
+def find_top_correlations(df, feature_names, n_top=10):
+    """Find and display top correlations."""
+    corr_matrix = df[list(feature_names)].corr()
+
+    # Extract correlation pairs
+    correlation_pairs = []
+    for i in range(len(feature_names)):
+        for j in range(i+1, len(feature_names)):
+            corr_val = corr_matrix.iloc[i, j]
+            correlation_pairs.append({
+                'feature1': feature_names[i],
+                'feature2': feature_names[j],
+                'correlation': corr_val
+            })
+
+    # Sort by absolute correlation
+    correlation_pairs.sort(key=lambda x: abs(x['correlation']), reverse=True)
+
+    print(f"\nTop {n_top} Correlations:")
+    for i, pair in enumerate(correlation_pairs[:n_top], 1):
+        feat1 = pair['feature1'].replace('mean ', '').replace('worst ', '')[:12]
+        feat2 = pair['feature2'].replace('mean ', '').replace('worst ', '')[:12]
+        print(f"{i:2d}. {feat1} ↔ {feat2}: r = {pair['correlation']:6.3f}")
+
+    return correlation_pairs
+
+
+def standardize_data(X, feature_names):
+    """Standardize features for PCA analysis."""
+
+    # Show scale differences before standardization
+    print(f"\nBefore standardization:")
+    for i in range(len(feature_names)):
+        mean_val = np.mean(X[:, i])
+        std_val = np.std(X[:, i])
+        range_val = np.ptp(X[:, i])
+        print(f"{feature_names[i][:20]:<20}: mean={mean_val:>8.2f}, std={std_val:>8.2f}, range={range_val:>8.2f}")
+
+    # Standardize
+    scaler = StandardScaler()  # Standardize features by removing the mean and scaling to unit variance.
+    X_scaled = scaler.fit_transform(X)
+
+    print(f"\nAfter standardization:")
+    for i in range(len(feature_names)):
+        mean_val = np.mean(X_scaled[:, i])
+        std_val = np.std(X_scaled[:, i])
+        print(f"{feature_names[i][:20]:<20}: mean={mean_val:>8.3f}, std={std_val:>8.3f}")
+
+    return X_scaled, scaler
+
+
+def implement_pca_step_by_step(X_scaled, feature_names):
+    """Implement PCA step-by-step to understand the mathematics."""
+
+    print(f"\nPCA Implementation Steps:")
+    n_samples, n_features = X_scaled.shape
+    print(f"Data dimensions: {n_samples} samples × {n_features} features")
+
+    # Step 1: Data is already centered (standardization sets mean=0)
+    print(f"\nStep 1: Data Centering")
+    print("Data already centered (standardization sets mean=0)")
+
+    # Step 2: Calculate covariance matrix
+    print(f"\nStep 2: Covariance Matrix")
+    cov_matrix = np.cov(X_scaled.T)
+    print(f"Covariance matrix shape: {cov_matrix.shape}")
+    print(f"Matrix is symmetric: {np.allclose(cov_matrix, cov_matrix.T)}")
+
+    # Step 3: Eigendecomposition
+    print(f"\nStep 3: Eigendecomposition")
+    eigenvalues, eigenvectors = np.linalg.eigh(cov_matrix)
+
+    # Sort in descending order
+    idx = np.argsort(eigenvalues)[::-1]
+    eigenvalues = eigenvalues[idx]
+    eigenvectors = eigenvectors[:, idx]
+
+    print(f"Eigenvalues sum: {np.sum(eigenvalues):.2f}")
+    print(f"Expected sum (number of features): {n_features}")
+
+    # Step 4: Calculate explained variance
+    print(f"\nStep 4: Variance Explained")
+    explained_variance_ratio = eigenvalues / np.sum(eigenvalues)
+    cumulative_variance = np.cumsum(explained_variance_ratio)
+
+    print("Top 10 Principal Components:")
+    print("PC    Eigenvalue   Var Explained   Cumulative")
+    print("-" * 45)
+    for i in range(min(10, len(eigenvalues))):
+        print(f"{i+1:2d}    {eigenvalues[i]:8.3f}      {explained_variance_ratio[i]:6.3f}      {cumulative_variance[i]:6.3f}")
+
+    # Components needed for variance thresholds
+    thresholds = [0.8, 0.9, 0.95]
+    print(f"\nComponents needed for variance thresholds:")
+    for threshold in thresholds:
+        n_components = np.argmax(cumulative_variance >= threshold) + 1
+        print(f"{threshold*100:2.0f}% variance: {n_components:2d} components")
+
+    # Step 5: Transform data
+    print(f"\nStep 5: Data Transformation")
+    X_pca = X_scaled @ eigenvectors
+    print(f"Original shape: {X_scaled.shape}")
+    print(f"Transformed shape: {X_pca.shape}")
+
+    return {
+        'eigenvalues': eigenvalues,
+        'eigenvectors': eigenvectors,
+        'explained_variance_ratio': explained_variance_ratio,
+        'cumulative_variance': cumulative_variance,
+        'X_pca': X_pca,
+        'cov_matrix': cov_matrix
+    }
+
+
+def analyze_components(pca_results, feature_names, n_components=3):
+    """Analyze and interpret principal components."""
+    print(f"\nPrincipal Component Analysis:")
+
+    eigenvectors = pca_results['eigenvectors']
+    eigenvalues = pca_results['eigenvalues']
+    explained_variance_ratio = pca_results['explained_variance_ratio']
+
+    for pc in range(n_components):
+        print(f"\nPRINCIPAL COMPONENT {pc + 1}:")
+        print(f"Eigenvalue: {eigenvalues[pc]:.3f}")
+        print(f"Variance explained: {explained_variance_ratio[pc]:.3f} ({explained_variance_ratio[pc]*100:.1f}%)")
+
+        # Get loadings (feature contributions)
+        loadings = eigenvectors[:, pc]   # Loadings are the weights that show how much each original feature contributes to a principal component.
+
+        # Sort features by absolute loading
+        loading_pairs = [(feature_names[i], loadings[i]) for i in range(len(feature_names))]
+        loading_pairs.sort(key=lambda x: abs(x[1]), reverse=True)
+
+        print(f"Top contributing features:")
+        print("Feature                 Loading")
+        print("-" * 35)
+        for i, (feature, loading) in enumerate(loading_pairs[:6]):
+            direction = "+" if loading > 0 else "-"
+            print(f"{feature[:20]:<20} {direction}{abs(loading):6.3f}")
+
+
+def visualize_pca_results(pca_results, feature_names, y, target_names):
+    """Create visualizations of PCA results."""
+    print(f"\nCreating PCA visualizations...")
+
+    eigenvalues = pca_results['eigenvalues']
+    explained_variance_ratio = pca_results['explained_variance_ratio']
+    cumulative_variance = pca_results['cumulative_variance']
+    X_pca = pca_results['X_pca']
+    eigenvectors = pca_results['eigenvectors']
+
+    fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+    fig.suptitle('PCA Analysis Results', fontsize=14)
+
+    # Plot 1: Scree plot
+    n_components = min(15, len(eigenvalues))
+    axes[0, 0].plot(range(1, n_components + 1), eigenvalues[:n_components], 'bo-', linewidth=2)
+    axes[0, 0].axhline(y=1, color='red', linestyle='--', alpha=0.7, label='Kaiser criterion (λ=1)')
+    axes[0, 0].set_xlabel('Principal Component')
+    axes[0, 0].set_ylabel('Eigenvalue')
+    axes[0, 0].set_title('Scree Plot')
+    axes[0, 0].grid(True, alpha=0.3)
+    axes[0, 0].legend()
+
+    # Plot 2: Cumulative explained variance
+    axes[0, 1].plot(range(1, n_components + 1), cumulative_variance[:n_components] * 100, 'go-', linewidth=2)
+    axes[0, 1].axhline(y=80, color='orange', linestyle='--', alpha=0.7, label='80% threshold')
+    axes[0, 1].axhline(y=90, color='red', linestyle='--', alpha=0.7, label='90% threshold')
+    axes[0, 1].set_xlabel('Number of Components')
+    axes[0, 1].set_ylabel('Cumulative Variance Explained (%)')
+    axes[0, 1].set_title('Cumulative Explained Variance')
+    axes[0, 1].grid(True, alpha=0.3)
+    axes[0, 1].legend()
+
+    # Plot 3: 2D PCA scatter plot
+    colors = ['red' if label == 0 else 'green' if label == 1 else 'yellow' for label in y]
+    scatter = axes[1, 0].scatter(X_pca[:, 0], X_pca[:, 1], c=colors, alpha=0.6, s=50)
+    axes[1, 0].set_xlabel(f'PC1 ({explained_variance_ratio[0]*100:.1f}% variance)')
+    axes[1, 0].set_ylabel(f'PC2 ({explained_variance_ratio[1]*100:.1f}% variance)')
+    axes[1, 0].set_title('2D PCA Projection')
+    axes[1, 0].grid(True, alpha=0.3)
+
+    # Add legend
+    from matplotlib.patches import Patch
+    legend_elements = [Patch(facecolor='red', alpha=0.6, label='red'),
+                      Patch(facecolor='green', alpha=0.6, label='green'),
+                      Patch(facecolor='lightyellow', alpha=0.6, label='yellow')]
+    axes[1, 0].legend(handles=legend_elements)
+
+    # Plot 4: Component loadings heatmap
+    n_pcs_heatmap = 5
+    loadings_matrix = eigenvectors[:, :n_pcs_heatmap]
+
+    im = axes[1, 1].imshow(loadings_matrix.T, cmap='RdBu_r', aspect='auto', vmin=-1, vmax=1)
+    axes[1, 1].set_yticks(range(n_pcs_heatmap))
+    axes[1, 1].set_yticklabels([f'PC{i+1}' for i in range(n_pcs_heatmap)])
+    axes[1, 1].set_xticks(range(0, len(feature_names), 5))
+    axes[1, 1].set_xticklabels([feature_names[i][:8] for i in range(0, len(feature_names), 5)], rotation=45)
+    axes[1, 1].set_title('Component Loadings Heatmap')
+
+    plt.colorbar(im, ax=axes[1, 1], shrink=0.8, label='Loading Value')
+    plt.tight_layout()
+    plt.show()
+
+    # Print key insights
+    pc_80 = np.argmax(cumulative_variance >= 0.8) + 1
+    pc_90 = np.argmax(cumulative_variance >= 0.9) + 1
+    print(f"\nKey Insights:")
+    print(f"- {pc_80} components explain 80% of variance")
+    print(f"- {pc_90} components explain 90% of variance")
+    print(f"- First 2 components explain {cumulative_variance[1]*100:.1f}% of variance")
+    print(f"- Good class separation visible in 2D projection")
+
+    return pc_80, pc_90
+
+
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+
+print("PCA Tutorial - Part 3: Component Selection and Quality Assessment")
+print("-" * 65)
+
+def select_optimal_components(pca_results, variance_thresholds=[0.8, 0.9, 0.95]):
+    """Determine optimal number of components using multiple criteria."""
+    print("Component Selection Methods:")
+
+    eigenvalues = pca_results['eigenvalues']
+    explained_variance_ratio = pca_results['explained_variance_ratio']
+    cumulative_variance = pca_results['cumulative_variance']
+
+    recommendations = {}
+
+    # Method 1: Variance threshold
+    print("\n1. Variance Threshold Method:")
+    for threshold in variance_thresholds:
+        n_components = np.argmax(cumulative_variance >= threshold) + 1
+        recommendations[f'{threshold*100:.0f}% variance'] = n_components
+        print(f"   {threshold*100:3.0f}% variance: {n_components:2d} components")
+
+    # Method 2: Kaiser criterion (eigenvalues > 1)
+    print("\n2. Kaiser Criterion (eigenvalue > 1):")
+    kaiser_components = np.sum(eigenvalues > 1)
+    recommendations['Kaiser criterion'] = kaiser_components
+    print(f"   Components with eigenvalue > 1: {kaiser_components}")
+
+    # Method 3: Scree plot elbow
+    print("\n3. Scree Plot Elbow:")
+    # Simple elbow detection
+    second_differences = np.diff(np.diff(eigenvalues))
+    elbow_idx = np.argmax(second_differences) + 2
+    recommendations['Scree plot'] = elbow_idx
+    print(f"   Elbow point suggests: {elbow_idx} components")
+
+    # Method 4: Interpretability (subjective)
+    interpretable_components = 5  # Based on clear loading patterns
+    recommendations['Interpretability'] = interpretable_components
+    print(f"\n4. Interpretability Assessment: {interpretable_components} components")
+
+    # Summary
+    print(f"\nMethod Summary:")
+    print("Method               Components   Variance Retained")
+    print("-" * 50)
+    for method, n_comp in recommendations.items():
+        variance = cumulative_variance[n_comp-1] * 100
+        print(f"{method:<20} {n_comp:6d}        {variance:6.1f}%")
+
+    # Final recommendation
+    recommended = int(np.median(list(recommendations.values())))
+    print(f"\nRecommended: {recommended} components")
+    print(f"Balances variance retention ({cumulative_variance[recommended-1]*100:.1f}%) with interpretability")
+
+    return {
+        'recommendations': recommendations,
+        'final_recommendation': recommended,
+        'variance_at_recommendation': cumulative_variance[recommended-1]
+    }
+
+
+def create_3d_visualization(pca_results, y, target_names):
+    """Create 3D visualization of first three principal components."""
+    print("\nCreating 3D PCA visualization...")
+
+    X_pca = pca_results['X_pca']
+    explained_variance_ratio = pca_results['explained_variance_ratio']
+
+    fig = plt.figure(figsize=(12, 8))
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Color points by class
+    colors = ['red', 'green', 'yellow']
+    for i, target in enumerate(np.unique(y)):
+        mask = y == target
+        ax.scatter(X_pca[mask, 0], X_pca[mask, 1], X_pca[mask, 2],
+                  c=colors[i], label=target_names[target], alpha=0.6, s=50)
+
+    ax.set_xlabel(f'PC1 ({explained_variance_ratio[0]*100:.1f}% variance)')
+    ax.set_ylabel(f'PC2 ({explained_variance_ratio[1]*100:.1f}% variance)')
+    ax.set_zlabel(f'PC3 ({explained_variance_ratio[2]*100:.1f}% variance)')
+    ax.set_title(f'3D PCA Visualization\nFirst 3 Components: {sum(explained_variance_ratio[:3])*100:.1f}% Total Variance')
+    ax.legend()
+
+    plt.tight_layout()
+    plt.show()
+
+    print(f"3D Insights:")
+    print(f"- First 3 components explain {sum(explained_variance_ratio[:3])*100:.1f}% of variance")
+    print(f"- Clear class separation visible in 3D space")
+    print(f"- PC1 provides primary separation axis")
+
+    return sum(explained_variance_ratio[:3])
+
+
+def assess_reconstruction_quality(X_scaled, pca_results, n_components_list=[2, 5, 10]):
+    """Assess PCA quality using reconstruction error."""
+    print("\nReconstruction Quality Assessment:")
+
+    eigenvectors = pca_results['eigenvectors']
+
+    print("Components  Reconstruction Error  Variance Retained  Info Loss")
+    print("-" * 60)
+
+    quality_metrics = {}
+
+    for n_comp in n_components_list:
+        # Reconstruct data using n components
+        eigenvectors_subset = eigenvectors[:, :n_comp]
+        X_projected = X_scaled @ eigenvectors_subset
+        X_reconstructed = X_projected @ eigenvectors_subset.T
+
+        # Calculate reconstruction error
+        reconstruction_error = np.mean((X_scaled - X_reconstructed) ** 2)
+        variance_retained = np.sum(pca_results['explained_variance_ratio'][:n_comp])
+        info_loss = 1 - variance_retained
+
+        quality_metrics[n_comp] = {
+            'reconstruction_error': reconstruction_error,
+            'variance_retained': variance_retained,
+            'info_loss': info_loss
+        }
+
+        print(f"{n_comp:6d}         {reconstruction_error:15.4f}         {variance_retained:10.3f}     {info_loss:8.3f}")
+
+    # Additional quality metrics
+    print(f"\nAdditional Quality Metrics:")
+    eigenvalues = pca_results['eigenvalues']
+
+    # Condition number
+    condition_number = np.max(eigenvalues) / np.min(eigenvalues[eigenvalues > 1e-10])
+    print(f"Condition number: {condition_number:.2e}")
+
+    # Effective dimensionality
+    normalized_eigenvalues = eigenvalues / np.sum(eigenvalues)
+    effective_dim = np.exp(-np.sum(normalized_eigenvalues * np.log(normalized_eigenvalues + 1e-12)))
+    print(f"Effective dimensionality: {effective_dim:.2f}")
+    print(f"Reduction ratio: {len(eigenvalues)/effective_dim:.1f}x")
+
+    return quality_metrics
+
+
+def visualize_quality_metrics(quality_metrics, pca_results):
+    """Visualize reconstruction quality and eigenvalue spectrum."""
+    print("\nCreating quality assessment plots...")
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+
+    # Plot 1: Reconstruction error vs components
+    components = list(quality_metrics.keys())
+    errors = [quality_metrics[k]['reconstruction_error'] for k in components]
+    variances = [quality_metrics[k]['variance_retained'] for k in components]
+
+    ax1.plot(components, errors, 'ro-', linewidth=2, markersize=8, label='Reconstruction Error')
+    ax1.set_xlabel('Number of Components')
+    ax1.set_ylabel('Reconstruction Error', color='red')
+    ax1.tick_params(axis='y', labelcolor='red')
+    ax1.grid(True, alpha=0.3)
+
+    # Secondary y-axis for variance
+    ax1_twin = ax1.twinx()
+    ax1_twin.plot(components, [v*100 for v in variances], 'go--', alpha=0.7, label='Variance Retained (%)')
+    ax1_twin.set_ylabel('Variance Retained (%)', color='green')
+    ax1_twin.tick_params(axis='y', labelcolor='green')
+
+    ax1.set_title('Reconstruction Quality vs Components')
+
+    # Plot 2: Eigenvalue spectrum
+    eigenvalues = pca_results['eigenvalues']
+    ax2.semilogy(range(1, len(eigenvalues[:15]) + 1), eigenvalues[:15], 'bo-', linewidth=2, markersize=6)
+    ax2.axhline(y=1, color='red', linestyle='--', alpha=0.7, label='Kaiser criterion')
+    ax2.set_xlabel('Principal Component')
+    ax2.set_ylabel('Eigenvalue (log scale)')
+    ax2.set_title('Eigenvalue Spectrum')
+    ax2.grid(True, alpha=0.3)
+    ax2.legend()
+
+    plt.tight_layout()
+    plt.show()
+
+    print(f"Quality plots show:")
+    print(f"- Trade-off between reconstruction error and dimensionality")
+    print(f"- Eigenvalue spectrum decay pattern")
+    print(f"- Kaiser criterion threshold visualization")
+
+
+
+def compare_reconstruction_samples(X_scaled, pca_results, feature_names, sample_indices=[0, 100, 200]):
+    """Compare original vs reconstructed data for specific samples."""
+    print(f"\nReconstruction Quality for Individual Samples:")
+
+    eigenvectors = pca_results['eigenvectors']
+    n_components_test = [2, 5, 10]
+
+    fig, axes = plt.subplots(len(sample_indices), len(n_components_test), figsize=(15, 10))
+    fig.suptitle('Sample Reconstruction Quality by Number of Components', fontsize=14)
+
+    reconstruction_errors = {}
+
+    for i, sample_idx in enumerate(sample_indices):
+        original_sample = X_scaled[sample_idx]
+        reconstruction_errors[sample_idx] = {}
+
+        for j, n_comp in enumerate(n_components_test):
+            # Reconstruct sample
+            eigenvectors_subset = eigenvectors[:, :n_comp]
+            sample_projected = original_sample @ eigenvectors_subset
+            sample_reconstructed = sample_projected @ eigenvectors_subset.T
+
+            reconstruction_error = np.mean((original_sample - sample_reconstructed) ** 2)
+            reconstruction_errors[sample_idx][n_comp] = reconstruction_error
+
+            if len(sample_indices) == 1:
+                ax = axes[j]
+            else:
+                ax = axes[i, j]
+
+            x_pos = np.arange(len(feature_names))
+            ax.plot(x_pos, original_sample, 'b-', alpha=0.7, label='Original', linewidth=2)
+            ax.plot(x_pos, sample_reconstructed, 'r--', alpha=0.7, label='Reconstructed', linewidth=2)
+
+            ax.set_title(f'Sample {sample_idx}: {n_comp} Components\nError: {reconstruction_error:.4f}')
+            ax.set_ylabel('Standardized Value')
+            if i == len(sample_indices) - 1:
+                ax.set_xlabel('Feature Index')
+            if j == 0:
+                ax.legend()
+            ax.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.show()
+
+    return reconstruction_errors
