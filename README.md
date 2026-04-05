@@ -171,6 +171,7 @@ pip install -r requirements.txt
   * *Perform Kruskal-Wallis test as non-parametric that compares the distributions of more than two independent groups - alternative to ANOVA.*
   * *create_comprehensive_summary*
   * *generate final report*
+  * *power_analysis between price and binary categories*
 
 #### *04 Dimnetional Reduction - PCA :* 
 * *Analyzing high-dimensional data characteristics.*
@@ -185,6 +186,10 @@ pip install -r requirements.txt
 * *Assess PCA quality using reconstruction error.*
 * *Visualize reconstruction quality and eigenvalue spectrum*
 * *Compare original vs reconstructed data for specific samples*
+
+#### *05 chi squar test :* 
+  * *chi_square_test details*
+  * *chi2 , carmer_V , Theil’s U*
 
 
 
