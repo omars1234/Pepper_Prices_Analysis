@@ -212,9 +212,8 @@ Data_Sets/
 
 notes.txt
 
-AnalysisFolder/00_Main.ipynb
 
-AnalysisFolder/05_Comparing_Two_Groups_Parametric_Tests.ipynb
-AnalysisFolder/06_chi_squar_test.ipynb
+
+AnalysisFolder/050_Comparing_Two_Groups_Parametric_Tests.ipynb
 AnalysisFolder/07_Comparing_Multiple_Groups_ANOVA_and_non.ipynb
 AnalysisFolder/08_Advanced_dimensional_reduction.ipynb
