@@ -151,12 +151,20 @@ pip install -r requirements.txt
   * *Calculate basic correlations between continuous variables*
   * *Correlation Assumptions Vaidation - Pearson correlation.*
 
-#### *02 Partial Correlation :* 
+#### *02 Correlation_2 :*   
+  * *Comprehensive correlation matrix analysis with confidence intervals*
+  * *advanced correlation visualizations*
+  * *Hierarchical clustering of correlation matrix*
+  * *Bootstrap confidence intervals demonstration*
+  * *Power analysis for correlation studies*
+  * *Final report*
+
+#### *03 Partial Correlation :* 
   * *Analyze p_color effects on correlations*
   * *correlation analysis between p_color* 
   * *Comprehensive correlation matrix analysis with confidence intervals ,and creating advanced correlation visualizations*
 
-#### *03 Statistical Tests :* 
+#### *04 Statistical Tests :* 
   * *normality check visually and with Shapiro-Wilk test*
   * *Outlier detection and visualization*
   * *advanced Normality check* 
@@ -173,7 +181,12 @@ pip install -r requirements.txt
   * *generate final report*
   * *power_analysis between price and binary categories*
 
-#### *04 Dimnetional Reduction - PCA :* 
+#### *05 chi squar test :* 
+  * *chi_square_test details*
+  * *chi2 , carmer_V , Theil’s U*  
+
+
+#### *06 Dimnetional Reduction - PCA :* 
 * *Analyzing high-dimensional data characteristics.*
 * *visualize_data_structure*
 * *Find and display feature correlations to identify redundancy*
@@ -187,9 +200,7 @@ pip install -r requirements.txt
 * *Visualize reconstruction quality and eigenvalue spectrum*
 * *Compare original vs reconstructed data for specific samples*
 
-#### *05 chi squar test :* 
-  * *chi_square_test details*
-  * *chi2 , carmer_V , Theil’s U*
+
 
 
 
