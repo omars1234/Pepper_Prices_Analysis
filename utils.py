@@ -4479,8 +4479,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-print("PCA Tutorial - Part 3: Component Selection and Quality Assessment")
-print("-" * 65)
+
 
 def select_optimal_components(pca_results, variance_thresholds=[0.8, 0.9, 0.95]):
     """Determine optimal number of components using multiple criteria."""
@@ -4710,3 +4709,722 @@ def compare_reconstruction_samples(X_scaled, pca_results, feature_names, sample_
     plt.show()
 
     return reconstruction_errors
+
+
+def visualize_chi_square_test_detailed(df, category_col, target_col, alpha=0.05):
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    from scipy import stats
+
+
+    print(f"Example: Testing association between {category_col} and {target_col}")
+
+    # Create contingency table
+    contingency_table = pd.crosstab(df[category_col], df[target_col])
+
+    # Chi-square test
+    chi2, p, dof, expected = stats.chi2_contingency(contingency_table, correction=False)
+
+    # Figure
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8),
+                                   #gridspec_kw={'height_ratios': [1, 2]}
+                                   )
+
+    # -------------------------
+    # Plot 1: Heatmap
+    # -------------------------
+          
+    sns.heatmap(contingency_table, annot=True, fmt='d', cmap='YlGnBu', ax=ax1)
+    ax1.set_title(f'Contingency Table: {category_col} vs {target_col}', fontsize=14)
+    ax1.set_xlabel(target_col)
+    ax1.set_ylabel(category_col)
+
+    # Row percentages
+    row_percentages = contingency_table.div(contingency_table.sum(axis=1), axis=0) * 100
+
+    # -------------------------
+    # Generic Explanation (works for any size)
+    # -------------------------
+    explanation_lines = []
+
+    for row in contingency_table.index:
+        total = contingency_table.loc[row].sum()
+
+        for col in contingency_table.columns:
+            count = contingency_table.loc[row, col]
+            pct = row_percentages.loc[row, col]
+
+            explanation_lines.append(
+                f"{row} → {col}: {count}/{total} ({pct:.1f}%)"
+            )
+
+    explanation = "\n".join(explanation_lines[:6])  # limit text length
+
+    plt.figtext(0.5, 0.6, explanation,
+                ha='center', va='center', fontsize=11,
+                bbox=dict(boxstyle="round,pad=0.5", fc="white", ec="black"))
+
+    # -------------------------
+    # Plot 2: Chi-square distribution
+    # -------------------------
+    x = np.linspace(0, max(chi2 * 2, 10), 1000)
+    y = stats.chi2.pdf(x, dof)
+
+    ax2.plot(x, y, lw=2, label=f'Chi-square (dof={dof})')
+
+    chi2_crit = stats.chi2.ppf(1 - alpha, dof)
+
+    ax2.fill_between(x, y, where=(x <= chi2_crit), alpha=0.4,
+                     label='Non-rejection region')
+
+    ax2.fill_between(x, y, where=(x >= chi2_crit), alpha=0.2,
+                     label='Critical region')
+
+    ax2.fill_between(x, y, where=(x >= chi2), alpha=0.5,
+                     label=f'p-value region ({p:.4f})')
+
+    ax2.axvline(chi2, linestyle='--', label=f'χ²={chi2:.3f}')
+    ax2.axvline(chi2_crit, linestyle=':', label=f'critical={chi2_crit:.3f}')
+
+    ax2.set_title("Chi-Square Distribution")
+    ax2.set_xlabel('Chi-square value')
+    ax2.set_ylabel('Density')
+    ax2.legend()
+    ax2.grid(True, alpha=0.3)
+
+    # -------------------------
+    # Text boxes
+    # -------------------------
+
+    stats_text = (
+        f"χ² = Σ (O - E)² / E\nχ² = {chi2:.4f}",
+        f"dof = (r-1)(c-1) = {dof}"
+    )
+
+    ax2.text(
+        0.95, 0.95,
+        stats_text,
+        transform=ax2.transAxes,
+        fontsize=10,
+        verticalalignment='top',
+        horizontalalignment='right',
+        bbox=dict(boxstyle="round", fc="white", ec="black")
+    )
+
+    '''
+
+    plt.figtext(0.5, 0.5,
+                f"χ² = Σ (O - E)² / E\nχ² = {chi2:.4f}",
+                ha='center', bbox=dict(boxstyle="round", fc="white"))
+
+    plt.figtext(0.5, 0.43,
+                f"dof = (r-1)(c-1) = {dof}",
+                ha='center', bbox=dict(boxstyle="round", fc="white"))
+
+    '''            
+
+    #plt.tight_layout()
+    #plt.subplots_adjust(hspace=0.4)
+    plt.show()
+
+    # -------------------------
+    # Tables & Debug Output
+    # -------------------------
+    expected_table = pd.DataFrame(expected,
+                                  index=contingency_table.index,
+                                  columns=contingency_table.columns)
+
+    print("\n=== Chi-Square Test Summary ===")
+    print("\nObserved:")
+    print(contingency_table)
+
+    print("\nExpected:")
+    print(expected_table.round(2))
+
+    print("\nRow %:")
+    print(row_percentages.round(2))
+
+    print(f"\nχ² = {chi2:.4f}, dof = {dof}, p = {p:.6f}")
+
+    if p < alpha:
+        print("→ Reject H0 (association exists)")
+    else:
+        print("→ Fail to reject H0 (no strong evidence of association)")
+
+    return chi2, p, dof
+
+
+def visualize_chi_square_test_general(df,category_col, target_col, alpha=0.05):
+    # if p < 0.05 → significant relationship
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    from scipy import stats
+
+    # -------------------------
+    # Chi-square test
+    # -------------------------
+
+    print(f"Example: Testing association between {category_col} and {target_col}")
+
+    # Create contingency table
+    contingency_table = pd.crosstab(df[category_col], df[target_col])
+
+    chi2, p, dof, expected = stats.chi2_contingency(contingency_table, correction=False)
+
+    # -------------------------
+    # Figure layout
+    # -------------------------
+    fig, (ax1, ax2) = plt.subplots(
+        1, 2, figsize=(20, 8),
+        #gridspec_kw={'height_ratios': [1, 2]}
+    )
+
+    # -------------------------
+    # Heatmap
+    # -------------------------
+    sns.heatmap(contingency_table, annot=True, fmt='d', cmap='YlGnBu', ax=ax1)
+    ax1.set_title('Contingency Table', fontsize=14)
+    ax1.set_xlabel(contingency_table.columns.name or "Column Categories")
+    ax1.set_ylabel(contingency_table.index.name or "Row Categories")
+
+    # -------------------------
+    # Row percentages
+    # -------------------------
+    row_percentages = contingency_table.div(contingency_table.sum(axis=1), axis=0) * 100
+
+    # -------------------------
+    # Dynamic explanation (GENERALIZED)
+    # -------------------------
+    explanation_lines = []
+
+    for row in contingency_table.index:
+        total = contingency_table.loc[row].sum()
+
+        for col in contingency_table.columns:
+            count = contingency_table.loc[row, col]
+            pct = row_percentages.loc[row, col]
+
+            explanation_lines.append(
+                f"{row} → {col}: {count}/{total} ({pct:.1f}%)"
+            )
+
+    explanation = "\n".join(explanation_lines[:6]) 
+
+
+    '''        
+        # Get dominant column (highest percentage)
+        max_col = row_percentages.loc[row].idxmax()
+        max_pct = row_percentages.loc[row].max()
+        count = contingency_table.loc[row, max_col]
+
+        explanation_lines.append(
+            f"For '{row}': {count}/{total} ({max_pct:.1f}%) fall under '{max_col}'"
+        )
+    
+    '''
+
+    plt.figtext(
+        0.5, 0.6, explanation,
+        ha='center', va='center', fontsize=11,
+        bbox=dict(boxstyle="round,pad=0.5", fc="white", ec="black")
+    )
+
+    # -------------------------
+    # Chi-square distribution
+    # -------------------------
+    x = np.linspace(0, max(50, chi2 * 2), 1000)
+    y = stats.chi2.pdf(x, dof)
+
+    ax2.plot(x, y, lw=2, label=f'Chi-square (df={dof})')
+
+    chi2_crit = stats.chi2.ppf(1 - alpha, dof)
+
+    ax2.fill_between(x, y, where=(x <= chi2_crit), alpha=0.3, label='Non-rejection')
+    ax2.fill_between(x, y, where=(x >= chi2_crit), alpha=0.2, label='Critical region')
+    ax2.fill_between(x, y, where=(x >= chi2), alpha=0.4, label=f'p-value = {p:.4f}')
+
+    ax2.axvline(chi2, linestyle='--', label=f'Observed χ² = {chi2:.2f}')
+    ax2.axvline(chi2_crit, linestyle=':', label=f'Critical = {chi2_crit:.2f}')
+
+    ax2.set_title("Chi-Square Distribution")
+    ax2.set_xlabel('Chi-square value')
+    ax2.set_ylabel('Density')
+    ax2.legend()
+    ax2.grid(alpha=0.3)
+
+    # -------------------------
+    # Formula & DOF
+    # -------------------------
+
+    stats_text = (
+        f"χ² = Σ (O - E)² / E = {chi2:.4f}",
+        f"dof = = ({contingency_table.shape[0]}-1) × ({contingency_table.shape[1]}-1) = {dof}"
+    )
+
+    ax2.text(
+        0.95, 0.95,
+        stats_text,
+        transform=ax2.transAxes,
+        fontsize=10,
+        verticalalignment='top',
+        horizontalalignment='right',
+        bbox=dict(boxstyle="round", fc="white", ec="black")
+    )
+    '''
+
+    plt.figtext(
+        0.5, 0.5,
+        f"χ² = Σ (O - E)² / E = {chi2:.4f}",
+        ha='center',
+        bbox=dict(boxstyle="round", fc="white")
+    )
+
+    plt.figtext(
+        0.5, 0.43,
+        f"Degrees of freedom = ({contingency_table.shape[0]}-1) × ({contingency_table.shape[1]}-1) = {dof}",
+        ha='center',
+        bbox=dict(boxstyle="round", fc="white")
+    )
+
+    '''
+
+    #plt.tight_layout()
+    #plt.subplots_adjust(hspace=0.4)
+    plt.show()
+
+    # -------------------------
+    # Expected table
+    # -------------------------
+    expected_df = pd.DataFrame(
+        expected,
+        index=contingency_table.index,
+        columns=contingency_table.columns
+    )
+
+    # -------------------------
+    # Detailed output
+    # -------------------------
+    print("\n--- Chi-Square Test Summary ---")
+    print(f"Chi-square: {chi2:.4f}")
+    print(f"Degrees of freedom: {dof}")
+    print(f"p-value: {p:.6f}")
+
+    print("\nObserved:")
+    print(contingency_table)
+
+    print("\nExpected:")
+    print(expected_df.round(2))
+
+    print("\nRow %:")
+    print(row_percentages.round(2))
+
+    print("\nCell Contributions:")
+    for i in range(contingency_table.shape[0]):
+        for j in range(contingency_table.shape[1]):
+            obs = contingency_table.iloc[i, j]
+            exp = expected[i, j]
+            contrib = ((obs - exp) ** 2) / exp
+            print(f"[{contingency_table.index[i]}, {contingency_table.columns[j]}] → {contrib:.3f}")
+
+    # -------------------------
+    # Conclusion
+    # -------------------------
+    if p < alpha:
+        print(f"\nConclusion: Reject H0 (significant association)")
+    else:
+        print(f"\nConclusion: Fail to reject H0 (no significant association)")
+
+    return chi2, p, dof
+
+
+def demonstrate_power_analysis_general(
+    df,
+    target_col,
+    numeric_cols,
+    positive_class=None,
+    alpha=0.05
+):
+    """
+    Generalized power analysis for any dataset.
+
+    Parameters:
+    ----------
+    df : pandas.DataFrame
+    target_col : str (binary target column)
+    numeric_cols : list (numeric features to analyze)
+    positive_class : value (optional, auto-detected if None)
+    alpha : significance level
+    """
+
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from scipy import stats
+    from statsmodels.stats.power import TTestIndPower
+
+    print("\n--- GENERALIZED EFFECT SIZE & POWER ANALYSIS ---\n")
+
+    # -------------------------
+    # Detect classes
+    # -------------------------
+    classes = df[target_col].dropna().unique()
+
+    if len(classes) != 2:
+        raise ValueError("Target must be binary for t-test power analysis")
+
+    if positive_class is None:
+        positive_class = classes[1]
+
+    negative_class = [c for c in classes if c != positive_class][0]
+
+    # -------------------------
+    # Effect size calculation
+    # -------------------------
+    effect_sizes = []
+    effect_labels = []
+
+    print("Effect Sizes:\n")
+
+    for col in numeric_cols:
+        group1 = df[df[target_col] == positive_class][col].dropna()
+        group2 = df[df[target_col] == negative_class][col].dropna()
+
+        n1, n2 = len(group1), len(group2)
+        mean1, mean2 = group1.mean(), group2.mean()
+        std1, std2 = group1.std(), group2.std()
+
+        pooled_std = np.sqrt(((n1-1)*std1**2 + (n2-1)*std2**2) / (n1+n2-2))
+
+        if pooled_std == 0:
+            d = 0
+        else:
+            d = abs(mean1 - mean2) / pooled_std
+
+        print(f"{col}: Cohen's d = {d:.4f}")
+
+        effect_sizes.append(d)
+        effect_labels.append(f"{col} (d={d:.2f})")
+
+    # Add benchmark effect sizes - effect sizes to visualize
+    benchmark_sizes = [0.2, 0.5, 0.8]
+    benchmark_labels = ['Small (0.2)', 'Medium (0.5)', 'Large (0.8)']
+
+    all_effects = benchmark_sizes + effect_sizes
+    all_labels = benchmark_labels + effect_labels
+
+    # -------------------------
+    # Power curves
+    # -------------------------
+    sample_sizes = np.arange(10, 200, 10)
+    power_analysis = TTestIndPower()
+
+    plt.figure(figsize=(20, 7))
+
+    for effect_size, label in zip(all_effects, all_labels):
+        power_vals = [
+            power_analysis.power(effect_size, n, alpha=alpha)
+            for n in sample_sizes
+        ]
+
+        plt.plot(sample_sizes, power_vals, label=label, linewidth=2)
+
+    # Reference lines
+    plt.axhline(0.8, linestyle='--', label='80% Power')
+
+    # Use smallest group as reference
+    group_sizes = [
+        len(df[df[target_col] == cls])
+        for cls in classes
+    ]
+    actual_n = min(group_sizes)
+
+    plt.axvline(actual_n, linestyle=':', label=f'Sample size = {actual_n}')
+
+    plt.xlabel('Sample Size')
+    plt.ylabel('Power')
+    plt.title('Power vs Sample Size')
+    plt.legend()
+    plt.grid(alpha=0.3)
+    plt.tight_layout()
+    plt.show()
+
+    
+
+    # -------------------------
+    # Current power
+    # -------------------------
+    print("\nCurrent Power:\n")
+
+    for col, d in zip(numeric_cols, effect_sizes):
+        group1 = df[df[target_col] == positive_class][col].dropna()
+        group2 = df[df[target_col] == negative_class][col].dropna()
+
+        n1, n2 = len(group1), len(group2)
+
+        power = power_analysis.power(
+            effect_size=d,
+            nobs1=n1,
+            alpha=alpha,
+            ratio=n2/n1
+        )
+
+        print(f"{col}: Power = {power:.4f} ({power*100:.1f}%)")
+
+    # -------------------------
+    # Required sample size
+    # -------------------------
+    print("\nRequired Sample Size for 80% Power:\n")
+
+    for label, d in zip(all_labels, all_effects):
+        try:
+            n_required = power_analysis.solve_power(
+                effect_size=d,
+                power=0.8,
+                alpha=alpha
+            )
+            print(f"{label}: {int(np.ceil(n_required))}")
+        except:
+            print(f"{label}: Could not compute")
+
+    print("\nDone.\n")
+
+
+
+
+def visualize_categorical_association_advanced(df, category_col, target_col, alpha=0.05):
+    """
+    Enhanced categorical analysis:
+    - Chi-square test
+    - Cramér’s V (strength)
+    - Theil’s U (directional association)
+    - Same visualization style as original function
+    """
+
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    from scipy import stats
+    from sklearn.metrics import mutual_info_score
+
+    print(f"Analyzing association between {category_col} and {target_col}")
+
+    # -------------------------
+    # Contingency Table
+    # -------------------------
+    contingency_table = pd.crosstab(df[category_col], df[target_col])
+
+    chi2, p, dof, expected = stats.chi2_contingency(contingency_table, correction=False)
+
+    # -------------------------
+    # Effect Size: Cramér’s V
+    # -------------------------
+    n = contingency_table.sum().sum()
+    r, k = contingency_table.shape
+    cramers_v = np.sqrt(chi2 / (n * (min(r - 1, k - 1))))
+
+    # -------------------------
+    # Theil’s U
+    # -------------------------
+    def entropy(series):
+        probs = series.value_counts(normalize=True)
+        return -np.sum(probs * np.log2(probs + 1e-9))
+
+    def theils_u(x, y):
+        mi = mutual_info_score(x, y)
+        h = entropy(y)
+        return mi / h if h != 0 else 1
+
+    u_cat_target = theils_u(df[category_col], df[target_col])
+    u_target_cat = theils_u(df[target_col], df[category_col])
+
+    # -------------------------
+    # Figure layout
+    # -------------------------
+    fig, (ax1, ax2) = plt.subplots(
+        1, 2, figsize=(20, 8),
+        #gridspec_kw={'height_ratios': [1, 1]}
+    )
+
+    # -------------------------
+    # Heatmap
+    # -------------------------
+    sns.heatmap(contingency_table, annot=True, fmt='d', cmap='YlGnBu', ax=ax1)
+    ax1.set_title(f'{category_col} vs {target_col}', fontsize=14)
+    ax1.set_xlabel(target_col)
+    ax1.set_ylabel(category_col)
+
+    # -------------------------
+    # Row percentages
+    # -------------------------
+    row_percentages = contingency_table.div(contingency_table.sum(axis=1), axis=0) * 100
+
+    # -------------------------
+    # Dynamic explanation
+    # -------------------------
+    explanation_lines = []
+    for row in contingency_table.index:
+        total = contingency_table.loc[row].sum()
+
+        for col in contingency_table.columns:
+            count = contingency_table.loc[row, col]
+            pct = row_percentages.loc[row, col]
+
+            explanation_lines.append(
+                f"{row} → {col}: {count}/{total} ({pct:.1f}%)"
+            )
+
+    explanation = "\n".join(explanation_lines[:6]) # limit text length
+
+    plt.figtext(
+        0.5, 0.6, explanation,
+        ha='center', va='center', fontsize=11,
+        bbox=dict(boxstyle="round,pad=0.5", fc="white", ec="black")
+    )
+
+    # -------------------------
+    # Chi-square distribution
+    # -------------------------
+    x = np.linspace(0, max(50, chi2 * 2), 1000)
+    y = stats.chi2.pdf(x, dof)
+
+    ax2.plot(x, y, lw=2, label=f'Chi-square (df={dof})')
+
+    chi2_crit = stats.chi2.ppf(1 - alpha, dof)
+
+    ax2.fill_between(x, y, where=(x <= chi2_crit), alpha=0.3, label='Non-rejection')
+    ax2.fill_between(x, y, where=(x >= chi2_crit), alpha=0.2, label='Critical region')
+    ax2.fill_between(x, y, where=(x >= chi2), alpha=0.4, label=f'p-value = {p:.4f}')
+
+    ax2.axvline(chi2, linestyle='--', label=f'Observed χ² = {chi2:.2f}')
+    ax2.axvline(chi2_crit, linestyle=':', label=f'Critical = {chi2_crit:.2f}')
+
+    ax2.set_title("Chi-Square Distribution")
+    ax2.set_xlabel('Chi-square value')
+    ax2.set_ylabel('Density')
+    ax2.legend()
+    ax2.grid(alpha=0.3)
+
+    # -------------------------
+    # Stats Box (UPDATED 🔥)
+    # -------------------------
+
+    # -------------------------
+    # Stats Box INSIDE right plot
+    # -------------------------
+    stats_text = (
+        f"χ² = {chi2:.4f}\n"
+        f"dof = {dof}\n"
+        f"Cramér’s V = {cramers_v:.4f}\n\n"
+        f"Theil’s U:\n"
+        f"{category_col} → {target_col} = {u_cat_target:.3f}\n"
+        f"{target_col} → {category_col} = {u_target_cat:.3f}"
+    )
+
+    ax2.text(
+        0.95, 0.95,
+        stats_text,
+        transform=ax2.transAxes,
+        fontsize=10,
+        verticalalignment='top',
+        horizontalalignment='right',
+        bbox=dict(boxstyle="round", fc="white", ec="black")
+    )
+    '''
+    plt.figtext(
+        0.5, 0.5,
+        f"χ² = {chi2:.4f} | dof = {dof}",
+        ha='center',
+        bbox=dict(boxstyle="round", fc="white")
+    )
+
+    plt.figtext(
+        0.5, 0.43,
+        f"Cramér’s V = {cramers_v:.4f}",
+        ha='center',
+        bbox=dict(boxstyle="round", fc="white")
+    )
+
+    plt.figtext(
+        0.5, 0.36,
+        f"Theil’s U:\n{category_col} → {target_col} = {u_cat_target:.3f}\n"
+        f"{target_col} → {category_col} = {u_target_cat:.3f}",
+        ha='center',
+        bbox=dict(boxstyle="round", fc="white")
+    )
+    '''
+
+    #plt.tight_layout()
+    #plt.subplots_adjust(hspace=0.4)
+    plt.show()
+
+    # -------------------------
+    # Tables
+    # -------------------------
+    expected_df = pd.DataFrame(expected,
+                               index=contingency_table.index,
+                               columns=contingency_table.columns)
+    
+    def cramers_v_interpretation(cramers_v):
+        if cramers_v > 0.30:
+            return "Strong"
+        elif 0.10 < cramers_v <= 0.30:
+            return "Moderate"
+        else:
+            return "Weak"
+        
+    def theils_u_interpretation(u):
+        if u > 0.80:
+            return "Very strong predictive power"
+        elif u > 0.50:
+            return "Strong predictive power"
+        elif u > 0.30:
+            return "Moderate predictive power"
+        elif u > 0.10:
+            return "Weak predictive power"
+        else:
+            return "Little to no predictive power" 
+        
+
+    theils_u_interp_target=theils_u_interpretation(u_cat_target)    
+    theils_u_interp_target_reverse=theils_u_interpretation(u_target_cat)   
+    interp = cramers_v_interpretation(cramers_v)   
+      
+
+
+    print("\n--- FULL SUMMARY ---")
+    print(f"Chi-square: {chi2:.4f}")
+    print(f"p-value: {p:.6f}")
+    print(f"Cramér’s V: {cramers_v:.4f},---> {interp} association")
+    print(f"Theil’s U ({category_col} → {target_col}): {u_cat_target:.4f},---> {theils_u_interp_target}")
+    print(f"Theil’s U ({target_col} → {category_col}): {u_target_cat:.4f},---> {theils_u_interp_target_reverse}")
+
+    print("\nObserved:")
+    print(contingency_table)
+
+    print("\nExpected:")
+    print(expected_df.round(2))
+
+    print("\nRow %:")
+    print(row_percentages.round(2))
+
+    print("\nCell Contributions:")
+    for i in range(contingency_table.shape[0]):
+        for j in range(contingency_table.shape[1]):
+            obs = contingency_table.iloc[i, j]
+            exp = expected[i, j]
+            contrib = ((obs - exp) ** 2) / exp
+            print(f"[{contingency_table.index[i]}, {contingency_table.columns[j]}] → {contrib:.3f}")
+
+    # -------------------------
+    # Conclusion
+    # -------------------------
+    if p < alpha:
+        print("\nConclusion: Significant association exists")
+    else:
+        print("\nConclusion: No strong evidence of association")
+
+    print("\nDone.\n")
