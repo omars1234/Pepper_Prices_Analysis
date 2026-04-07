@@ -32,7 +32,7 @@ git clone https://github.com/omars1234/Pepper_Prices_Analysis.git
 ```
 
 ```bash
-conda create --name EnvPepperPricesAnalysis python=3.10 -y
+conda create --name EnvPepperPricesAnalysis python=3.12.1 -y
 ```
 
 ```bash
@@ -186,7 +186,7 @@ pip install -r requirements.txt
   * *chi2 , carmer_V , Theil’s U*  
 
 
-#### *06 Dimnetional Reduction - PCA :* 
+#### *06A Dimnetional Reduction - PCA :* 
 * *Analyzing high-dimensional data characteristics.*
 * *visualize_data_structure*
 * *Find and display feature correlations to identify redundancy*
@@ -199,6 +199,9 @@ pip install -r requirements.txt
 * *Assess PCA quality using reconstruction error.*
 * *Visualize reconstruction quality and eigenvalue spectrum*
 * *Compare original vs reconstructed data for specific samples*
+
+
+#### *06C_dimensional_reduction - tsne,UMAP*
 
 
 
