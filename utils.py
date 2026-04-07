@@ -13,6 +13,312 @@ from datetime import datetime,time
 import math
 
 
+
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+
+def feature_development(Dataset,Numericaltarget,rolling_window,span_n):
+    import matplotlib.pyplot as plt
+    import matplotlib.gridspec as gridspec
+    fig = plt.figure(figsize=(20, 8))
+    gs = gridspec.GridSpec(2, 2, height_ratios=[1, 1])
+
+    ax1 = fig.add_subplot(gs[0, 0])
+    Dataset[Numericaltarget].rolling(window=rolling_window).mean().plot(color="red")
+    ax1.set_title(f"Price SMA - Simple Moving Average (yearly) window= {rolling_window}")
+
+    ax2 = fig.add_subplot(gs[0, 1])
+    Dataset[Numericaltarget].expanding().mean().plot(color="red")
+    ax2.set_title("Price CMA - Cumulative Moving Avearge (yearly)")
+
+    ax3 = fig.add_subplot(gs[1, 0])
+    Dataset[Numericaltarget].ewm(alpha=.01,adjust=False).mean().plot(color="red")
+    ax3.set_title("Price EMA - Exponential Moving Average (yearly)")
+
+
+    ax4 = fig.add_subplot(gs[1, 1])
+    Dataset[Numericaltarget].ewm(span=span_n).mean().plot(color="red")
+    ax4.set_title(f"Price EMWA - Exponential Moving Weighted Average span= {span_n} -- this the is best method to use when it comes to\n times series analysus as this one gives weight for the most recent data values (yearly)");
+
+    plt.tight_layout()
+    plt.show()
+
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+def plot_price_distributions(df, price_col, threshold, category_col=None):
+    """
+    Visualize histogram, density, and ECDF of a numeric column.
+    
+    Parameters:
+    -----------
+    df : pd.DataFrame
+        Original dataset.
+    price_col : str
+        Numeric column to visualize.
+    threshold : float or int
+        Threshold line to add in the plots.
+    category_col : str, optional
+        Categorical column for grouping (hue).
+    """
+    plt.figure(figsize=(20, 5))
+
+    # 1️⃣ Histogram
+    plt.subplot(2, 3, 4)
+    sns.histplot(
+        data=df,
+        x=price_col,
+        hue=category_col,
+        bins=50,
+        kde=False,
+        multiple='stack',
+        alpha=0.7
+    )
+    plt.axvline(threshold, color='red', linestyle='--', label=f'Threshold = {threshold}')
+    plt.legend()
+    plt.title(f"{price_col} histogram by {category_col if category_col else 'All'}")
+
+    # 2️⃣ Density (KDE)
+    plt.subplot(2, 3, 5)
+    sns.kdeplot(
+        data=df,
+        x=price_col,
+        hue=category_col,
+        fill=True
+    )
+    plt.axvline(threshold, color='red', linestyle='--')
+    plt.title(f"{price_col} density function by {category_col if category_col else 'All'}")
+
+    # 3️⃣ ECDF
+    plt.subplot(2, 3, 6)
+    sns.ecdfplot(
+        data=df,
+        x=price_col,
+        hue=category_col
+    )
+    plt.axvline(threshold, color='red', linestyle='--')
+    plt.title(f"{price_col} cumulative density by {category_col if category_col else 'All'}")
+
+    plt.tight_layout()
+    plt.show()
+
+
+import numpy as np
+import pandas as pd
+
+def price_conditional_empirical_prob_all(df, price_col, threshold, category_col=None):
+    """
+    Compute all empirical conditional probabilities for a numeric variable:
+    P(>), P(<), P(=), P(>=), P(<=)
+    
+    Optionally conditioned on a categorical column.
+    The category column (if provided) appears first in the output.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Dataset containing the data.
+    price_col : str
+        Column name of the numeric variable (e.g. 'price').
+    threshold : float or int
+        Threshold value for the probability calculation.
+    category_col : str, optional
+        Categorical column name for grouping (e.g. 'segment').
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame with empirical probabilities (by group if provided).
+    """
+    results = []
+
+    # Helper function to compute all probabilities for a numeric Series
+    def compute_probs(values):
+        probs = {
+            f"P({price_col} > {threshold})": np.mean(values > threshold),
+            f"P({price_col} < {threshold})": np.mean(values < threshold),
+            f"P({price_col} = {threshold})": np.mean(values == threshold),
+            f"P({price_col} >= {threshold})": np.mean(values >= threshold),
+            f"P({price_col} <= {threshold})": np.mean(values <= threshold),
+        }
+        return probs
+
+    # No category condition → overall probabilities
+    if category_col is None:
+        prices = df[price_col]
+        probs = compute_probs(prices)
+        probs = {"Condition": "All", **probs}
+        results.append(probs)
+        df_result = pd.DataFrame(results)
+        df_result = df_result[
+            ["Condition"]
+            + [col for col in df_result.columns if col != "Condition"]
+        ]
+        return df_result
+
+    # With category condition → probabilities per group
+    for cat, group in df.groupby(category_col):
+        prices = group[price_col]
+        probs = compute_probs(prices)
+        probs = {category_col: cat, **probs}
+        results.append(probs)
+
+    df_result = pd.DataFrame(results)
+    df_result = df_result[
+        [category_col]
+        + [col for col in df_result.columns if col != category_col]
+    ]
+    return df_result
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy.stats import lognorm, norm, gamma
+
+def plot_price_distribution_fit(df, price_col, threshold, category_col=None, dist="lognormal"):
+    """
+    Plot histogram, fitted distribution density (KDE), and ECDF.
+    """
+    plt.figure(figsize=(20, 5))
+
+    # 1️⃣ Histogram
+    plt.subplot(2, 3, 4)
+    sns.histplot(
+        data=df,
+        x=price_col,
+        hue=category_col,
+        bins=50,
+        kde=False,
+        multiple='stack',
+        alpha=0.7
+    )
+    plt.axvline(threshold, color='red', linestyle='--', label=f"Threshold = {threshold}")
+    plt.legend()
+    plt.title(f"{price_col} histogram by {category_col if category_col else 'All'}")
+
+    # 2️⃣ Fitted density (KDE approximation)
+    plt.subplot(2, 3, 5)
+    if dist == "lognormal":
+        shape, loc, scale = lognorm.fit(df[price_col], floc=0)
+        x_vals = np.linspace(df[price_col].min(), df[price_col].max(), 1000)
+        plt.plot(x_vals, lognorm.pdf(x_vals, shape, loc=loc, scale=scale), color='blue')
+    elif dist == "normal":
+        mu, sigma = norm.fit(df[price_col])
+        x_vals = np.linspace(df[price_col].min(), df[price_col].max(), 1000)
+        plt.plot(x_vals, norm.pdf(x_vals, mu, sigma), color='blue')
+    elif dist == "gamma":
+        shape, loc, scale = gamma.fit(df[price_col], floc=0)
+        x_vals = np.linspace(df[price_col].min(), df[price_col].max(), 1000)
+        plt.plot(x_vals, gamma.pdf(x_vals, shape, loc=loc, scale=scale), color='blue')
+    plt.axvline(threshold, color='red', linestyle='--')
+    plt.title(f"{price_col} fitted {dist} density by {category_col if category_col else 'All'}")
+
+    # 3️⃣ ECDF
+    plt.subplot(2, 3, 6)
+    sns.ecdfplot(
+        data=df,
+        x=price_col,
+        hue=category_col
+    )
+    plt.axvline(threshold, color='red', linestyle='--')
+    plt.title(f"{price_col} cumulative density by {category_col if category_col else 'All'}")
+
+    plt.tight_layout()
+    plt.show()
+
+
+
+import numpy as np
+import pandas as pd
+from scipy.stats import lognorm, norm, gamma
+
+def price_conditional_distribution_prob_all(
+    df, price_col, threshold, category_col=None, dist="lognormal"
+):
+    """
+    Compute all conditional probabilities using a fitted distribution.
+    Calculates: P(>), P(<), P(=), P(>=), P(<=)
+    Category column (if provided) is shown first in the output.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Dataset containing price column and optional categorical column.
+    price_col : str
+        Numeric column to fit distribution on.
+    threshold : float
+        Threshold value for probability calculation.
+    category_col : str, optional
+        Categorical column name to condition on.
+    dist : str
+        Distribution type: 'lognormal', 'normal', or 'gamma'.
+
+    Returns
+    -------
+    pd.DataFrame
+        Probabilities per category (or overall if no category).
+    """
+
+    valid_dists = ["lognormal", "normal", "gamma"]
+    if dist not in valid_dists:
+        raise ValueError(f"Invalid distribution '{dist}'. Must be one of {valid_dists}")
+
+    results = []
+
+    # --- helper function ---
+    def compute_probs(prices):
+        # Fit the chosen distribution
+        if dist == "lognormal":
+            shape, loc, scale = lognorm.fit(prices, floc=0)
+            cdf_val = lognorm.cdf(threshold, shape, loc=loc, scale=scale)
+        elif dist == "normal":
+            mu, sigma = norm.fit(prices)
+            cdf_val = norm.cdf(threshold, mu, sigma)
+        elif dist == "gamma":
+            shape, loc, scale = gamma.fit(prices, floc=0)
+            cdf_val = gamma.cdf(threshold, shape, loc=loc, scale=scale)
+
+        # Convert to probabilities for all comparison operators
+        probs = {
+            f"P({price_col} > {threshold})": 1 - cdf_val,
+            f"P({price_col} < {threshold})": cdf_val,
+            f"P({price_col} >= {threshold})": 1 - cdf_val,
+            f"P({price_col} <= {threshold})": cdf_val,
+            f"P({price_col} = {threshold})": 0.0,  # continuous dist → 0
+        }
+        return probs
+
+    # --- no categorical condition ---
+    if category_col is None:
+        prices = df[price_col]
+        probs = compute_probs(prices)
+        # Make category column for consistency
+        probs = {"Condition": "All", **probs}
+        results.append(probs)
+        df_result = pd.DataFrame(results)
+        df_result = df_result[
+            ["Condition"]
+            + [col for col in df_result.columns if col != "Condition"]
+        ]
+        return df_result
+
+    # --- with categorical condition ---
+    for cat, group in df.groupby(category_col):
+        prices = group[price_col]
+        probs = compute_probs(prices)
+        # Make sure category_col is first
+        probs = {category_col: cat, **probs}
+        results.append(probs)
+
+    df_result = pd.DataFrame(results)
+    df_result = df_result[
+        [category_col]
+        + [col for col in df_result.columns if col != category_col]
+    ]
+    return df_result
+
+
+
 def central_tendency_stats(data, column):
     """Calculate and display all measures of central tendency for a column."""
     values = data[column]
@@ -5428,3 +5734,273 @@ def visualize_categorical_association_advanced(df, category_col, target_col, alp
         print("\nConclusion: No strong evidence of association")
 
     print("\nDone.\n")
+
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import silhouette_score
+from sklearn.cluster import KMeans
+from scipy.stats import mode
+from sklearn.manifold import TSNE
+from sklearn.compose import ColumnTransformer
+from sklearn.decomposition import PCA
+
+
+
+def clustering_accuracy(y_true, clusters):
+    cluster_labels = {}
+
+    for c in np.unique(clusters):
+        labels_in_cluster = y_true[clusters == c]
+        values, counts = np.unique(labels_in_cluster, return_counts=True)
+        cluster_labels[c] = values[np.argmax(counts)]
+
+    y_pred = np.array([cluster_labels[c] for c in clusters])
+    return np.mean(y_pred == y_true)
+
+
+
+def explore_tsne_perplexity(X_scaled, y, perplexity_values=[5, 15, 30, 50],n_clusters=3):
+    """Explore different perplexity values."""
+    print(f"\nExploring t-SNE Perplexity Effects:")
+    perplexity_results = {}
+
+    for perp in perplexity_values:
+        print(f"  Testing perplexity = {perp}...", end=" ")
+
+        # Apply t-SNE
+        tsne = TSNE(n_components=2, perplexity=perp, learning_rate=200,
+                    random_state=42, verbose=0)
+        X_tsne = tsne.fit_transform(X_scaled)
+
+        # Calculate metrics
+        kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+        clusters = kmeans.fit_predict(X_tsne)
+        silhouette = silhouette_score(X_tsne, clusters)
+
+        # Clustering accuracy
+        tsne_accuracy = clustering_accuracy(y, tsne_clusters)
+
+        print(f"Silhouette: {silhouette:.3f}, Accuracy: {tsne_accuracy:.3f}")
+
+        perplexity_results[perp] = {
+            'embedding': X_tsne,
+            'silhouette_score': silhouette,
+            'clustering_accuracy': tsne_accuracy,
+            'clusters': clusters
+        }
+
+    return perplexity_results
+
+
+def visualize_tsne_results(X_pca, X_tsne, y, target_names, pca_results, tsne_results):
+    """Compare PCA vs t-SNE visualizations."""
+    fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+    fig.suptitle('PCA vs t-SNE Comparison', fontsize=16)
+
+    colors = ['red', 'green','yellow']
+    labels = [target_names[0], target_names[1],target_names[2]]
+
+    # PCA - True labels
+    for color, label in zip(colors, labels):
+        mask = y == label
+        axes[0, 0].scatter(X_pca[mask, 0], X_pca[mask, 1],
+                          c=color, alpha=0.6, s=50, label=label)
+    axes[0, 0].set_title(f'PCA - True Labels\nSilhouette: {pca_results["silhouette_score"]:.3f}')
+    axes[0, 0].legend()
+    axes[0, 0].grid(True, alpha=0.3)
+
+    # t-SNE - True labels
+    for color, label in zip(colors, labels):
+        mask = y == label
+        axes[0, 1].scatter(X_tsne[mask, 0], X_tsne[mask, 1],
+                          c=color, alpha=0.6, s=50, label=label)
+    axes[0, 1].set_title(f't-SNE - True Labels\nSilhouette: {tsne_results["silhouette_score"]:.3f}')
+    axes[0, 1].legend()
+    axes[0, 1].grid(True, alpha=0.3)
+
+    # PCA - Clusters
+    scatter1 = axes[1, 0].scatter(X_pca[:, 0], X_pca[:, 1],
+                                 c=pca_results['clusters'], cmap='viridis', alpha=0.6, s=50)
+    axes[1, 0].set_title(f'PCA - K-Means Clusters\nAccuracy: {pca_results["clustering_accuracy"]:.3f}')
+    axes[1, 0].grid(True, alpha=0.3)
+    plt.colorbar(scatter1, ax=axes[1, 0])
+
+    # t-SNE - Clusters
+    scatter2 = axes[1, 1].scatter(X_tsne[:, 0], X_tsne[:, 1],
+                                 c=tsne_results['clusters'], cmap='viridis', alpha=0.6, s=50)
+    axes[1, 1].set_title(f't-SNE - K-Means Clusters\nAccuracy: {tsne_results["clustering_accuracy"]:.3f}')
+    axes[1, 1].grid(True, alpha=0.3)
+    plt.colorbar(scatter2, ax=axes[1, 1])
+
+    plt.tight_layout()
+    plt.show()
+
+
+def explore_umap_neighbors(X_scaled, y, n_neighbors_values=[5, 15, 30, 50]):
+    """Explore different n_neighbors values for UMAP."""
+    print(f"\nExploring UMAP n_neighbors Effects:")
+    neighbors_results = {}
+
+    for n_neigh in n_neighbors_values:
+        print(f"  Testing n_neighbors = {n_neigh}...", end=" ")
+
+        # Apply UMAP
+        umap_model = umap.UMAP(n_neighbors=n_neigh, min_dist=0.1, n_components=2,
+                              random_state=42, verbose=False)
+        X_umap = umap_model.fit_transform(X_scaled)
+
+        # Calculate metrics
+        kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
+        clusters = kmeans.fit_predict(X_umap)
+        silhouette = silhouette_score(X_umap, clusters)
+
+        # Clustering accuracy
+        umap_accuracy = clustering_accuracy(y, umap_clusters)
+
+        print(f"Silhouette: {silhouette:.3f}, Accuracy: {umap_accuracy:.3f}")
+
+        neighbors_results[n_neigh] = {
+            'embedding': X_umap,
+            'silhouette_score': silhouette,
+            'clustering_accuracy': umap_accuracy,
+            'clusters': clusters
+        }
+
+    return neighbors_results
+
+
+
+def explore_umap_min_dist(X_scaled, y, min_dist_values=[0.0, 0.1, 0.3, 0.5],n_clusters=3):
+    """Explore different min_dist values for UMAP."""
+    print(f"\nExploring UMAP min_dist Effects:")
+    min_dist_results = {}
+
+    for min_d in min_dist_values:
+        print(f"  Testing min_dist = {min_d}...", end=" ")
+
+        # Apply UMAP
+        umap_model = umap.UMAP(n_neighbors=15, min_dist=min_d, n_components=2,
+                              random_state=42, verbose=False)
+        X_umap = umap_model.fit_transform(X_scaled)
+
+        # Calculate metrics
+        kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+        clusters = kmeans.fit_predict(X_umap)
+        silhouette = silhouette_score(X_umap, clusters)
+
+        # Clustering accuracy
+        umap_accuracy = clustering_accuracy(y, umap_clusters)
+
+        print(f"Silhouette: {silhouette:.3f}, Accuracy: {umap_accuracy:.3f}")
+
+        min_dist_results[min_d] = {
+            'embedding': X_umap,
+            'silhouette_score': silhouette,
+            'clustering_accuracy': umap_accuracy,
+            'clusters': clusters
+        }
+
+    return min_dist_results
+
+
+
+def visualize_umap_parameters(neighbors_results, min_dist_results, y, target_names):
+    """Visualize UMAP parameter effects."""
+    colors = ['red', 'green','yellow']
+    labels = [target_names[0], target_names[1],target_names[2]]
+
+    # n_neighbors effects
+    fig, axes = plt.subplots(2, 4, figsize=(20, 10))
+    fig.suptitle('UMAP n_neighbors Effects', fontsize=16)
+
+    for idx, (n_neigh, result) in enumerate(neighbors_results.items()):
+        X_umap = result['embedding']
+
+        # True labels
+        for color, label in zip(colors, labels):
+            mask = y == label
+            axes[0, idx].scatter(X_umap[mask, 0], X_umap[mask, 1],
+                               c=color, alpha=0.6, s=30, label=label)
+        axes[0, idx].set_title(f'n_neighbors = {n_neigh}\nSil: {result["silhouette_score"]:.3f}')
+        axes[0, idx].grid(True, alpha=0.3)
+        if idx == 0:
+            axes[0, idx].legend()
+
+        # Clusters
+        clusters = result['clusters']
+        axes[1, idx].scatter(X_umap[:, 0], X_umap[:, 1],
+                           c=clusters, cmap='viridis', alpha=0.6, s=30)
+        axes[1, idx].set_title(f'Acc: {result["clustering_accuracy"]:.3f}')
+        axes[1, idx].grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.show()
+
+    # min_dist effects
+    fig, axes = plt.subplots(2, 4, figsize=(20, 10))
+    fig.suptitle('UMAP min_dist Effects', fontsize=16)
+
+    for idx, (min_d, result) in enumerate(min_dist_results.items()):
+        X_umap = result['embedding']
+
+        # True labels
+        for color, label in zip(colors, labels):
+            mask = y == label   
+            axes[0, idx].scatter(X_umap[mask, 0], X_umap[mask, 1],
+                               c=color, alpha=0.6, s=30, label=label)
+        axes[0, idx].set_title(f'min_dist = {min_d}\nSil: {result["silhouette_score"]:.3f}')
+        axes[0, idx].grid(True, alpha=0.3)
+        if idx == 0:
+            axes[0, idx].legend()
+
+        # Clusters
+        clusters = result['clusters']
+        axes[1, idx].scatter(X_umap[:, 0], X_umap[:, 1],
+                           c=clusters, cmap='viridis', alpha=0.6, s=30)
+        axes[1, idx].set_title(f'Acc: {result["clustering_accuracy"]:.3f}')
+        axes[1, idx].grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.show()
+
+
+
+def visualize_three_methods(X_pca, X_tsne, X_umap, y, target_names, pca_results, tsne_results, umap_results):
+    """Compare all three methods side by side."""
+    fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+    fig.suptitle('PCA vs t-SNE vs UMAP Comparison', fontsize=16)
+
+    colors = ['red', 'green','yellow']
+    labels = [target_names[0], target_names[1],target_names[2]]
+
+    embeddings = [X_pca, X_tsne, X_umap]
+    results = [pca_results, tsne_results, umap_results]
+    method_names = ['PCA', 't-SNE', 'UMAP']
+
+    for i, (embedding, result, method) in enumerate(zip(embeddings, results, method_names)):
+        # True labels
+        for color, label in zip(colors, labels):
+            mask = y == label
+            axes[0, i].scatter(embedding[mask, 0], embedding[mask, 1],
+                              c=color, alpha=0.6, s=50, label=label)
+        axes[0, i].set_title(f'{method}\nSilhouette: {result["silhouette_score"]:.3f}')
+        axes[0, i].grid(True, alpha=0.3)
+        if i == 0:
+            axes[0, i].legend()
+
+        # Clusters
+        clusters = result['clusters']
+        scatter = axes[1, i].scatter(embedding[:, 0], embedding[:, 1],
+                                   c=clusters, cmap='viridis', alpha=0.6, s=50)
+        axes[1, i].set_title(f'{method} Clusters\nAccuracy: {result["clustering_accuracy"]:.3f}')
+        axes[1, i].grid(True, alpha=0.3)
+        plt.colorbar(scatter, ax=axes[1, i])
+
+    plt.tight_layout()
+    plt.show()
+
+
