@@ -12,6 +12,18 @@ from datetime import datetime,time
 
 import math
 
+def laod_cleaned_data():
+    df=pd.read_csv("Data_Sets/data_set_for_stats.csv")
+    df['week_start_dt']=pd.to_datetime(df['week_start_dt'])
+    df['week_end_dt']=pd.to_datetime(df['week_end_dt'])
+
+    numerical_cols=df.select_dtypes(include=np.number).columns.tolist()
+    categorical_cols=df.select_dtypes(include='object').columns.tolist()
+    boolean_cols=df.select_dtypes(include='bool').columns.tolist()
+    date_cols=df.select_dtypes(include='datetime').columns.tolist()
+
+    return df,numerical_cols,categorical_cols,boolean_cols,date_cols
+
 
 
 import matplotlib.pyplot as plt
@@ -2880,32 +2892,32 @@ def perform_mannwhitney_test(data, group_var, test_var, display_name=None):
 
 
 
-def explore_categorical_data(data):
+def explore_data_for_stats_tests(data,group_var,dependent_var):
     """
-    Comprehensive exploration of the categorical_data dataset with focus on price differences
-    between p_color (our main ANOVA example).
+    Comprehensive exploration of the penguin dataset with focus on numerical features differences
+    between specific categories (our main ANOVA example).
 
     Parameters:
     -----------
     data : pandas.DataFrame
-        The p_color dataset
+        The penguin dataset
     """
     print("\n" + "=" * 60)
-    print("EXPLORATORY DATA ANALYSIS: price by p_color")
+    print(f"EXPLORATORY DATA ANALYSIS: {dependent_var} by {group_var}")
     print("=" * 60)
 
-    dependent_var = 'price'
-    group_var = 'p_color'
+    dependent_var = dependent_var
+    group_var = group_var
 
-    # Calculate descriptive statistics by species
-    print("\nDescriptive Statistics by p_color:")
+    # Calculate descriptive statistics by group_var
+    print(f"\nDescriptive Statistics by {group_var}:")
     print("-" * 45)
 
-    species_stats = data.groupby(group_var)[dependent_var].agg([
+    groups_stats = data.groupby(group_var)[dependent_var].agg([
         'count', 'mean', 'median', 'std', 'min', 'max'
     ]).round(2)
 
-    print(species_stats)
+    print(groups_stats)
 
     # Calculate overall statistics
     overall_mean = data[dependent_var].mean()
@@ -2913,7 +2925,7 @@ def explore_categorical_data(data):
     overall_n = len(data)
 
     print(f"\nOverall Statistics:")
-    print(f"Mean body mass: {overall_mean:.2f} g")
+    print(f"Mean {dependent_var}: {overall_mean:.2f} g")
     print(f"Standard deviation: {overall_std:.2f} g")
     print(f"Total sample size: {overall_n}")
 
@@ -2922,65 +2934,65 @@ def explore_categorical_data(data):
     print("-" * 35)
 
     # Between-group variation (simplified illustration)
-    species_means = data.groupby(group_var)[dependent_var].mean()
-    species_n = data.groupby(group_var)[dependent_var].count()
+    group_means = data.groupby(group_var)[dependent_var].mean()
+    group_n = data.groupby(group_var)[dependent_var].count()
 
-    print("p_color means:")
-    for species, mean in species_means.items():
-        n = species_n[species]
-        print(f"  {species}: {mean:.2f} g (n = {n})")
+    print(f"{group_var} means:")
+    for group, mean in group_means.items():
+        n = group_n[group]
+        print(f"  {group}: {mean:.2f} g (n = {n})")
 
     # Calculate range of means as a simple measure of between-group variation
-    mean_range = species_means.max() - species_means.min()
-    print(f"\nRange of p_color means: {mean_range:.2f} g")
+    mean_range = group_means.max() - group_means.min()
+    print(f"\nRange of {group_var} means: {mean_range:.2f} g")
     print(f"This represents the between-group variation we'll analyze with ANOVA")
 
     # Create comprehensive visualizations
-    fig, axes = plt.subplots(2, 3, figsize=(20, 12))
-    fig.suptitle('Exploratory Data Analysis: price by p_color', fontsize=16)
+    fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+    fig.suptitle(f'Exploratory Data Analysis: {dependent_var} by {group_var}', fontsize=16)
 
     # 1. Box plot
     sns.boxplot(data=data, x=group_var, y=dependent_var, ax=axes[0, 0])
-    axes[0, 0].set_title('Box Plot: price by p_color')
-    axes[0, 0].set_ylabel('price')
+    axes[0, 0].set_title(f'Box Plot: {dependent_var} by {group_var}')
+    axes[0, 0].set_ylabel(f'{dependent_var}')
 
     # 2. Violin plot
     sns.violinplot(data=data, x=group_var, y=dependent_var, ax=axes[0, 1])
-    axes[0, 1].set_title('Violin Plot: price by p_color')
-    axes[0, 1].set_ylabel('price')
+    axes[0, 1].set_title(f'Violin Plot: {dependent_var} by {group_var}')
+    axes[0, 1].set_ylabel(f'{dependent_var}')
 
     # 3. Strip plot with jitter
     sns.stripplot(data=data, x=group_var, y=dependent_var, ax=axes[0, 2],
                   alpha=0.6, size=4)
     axes[0, 2].set_title('Strip Plot: Individual Data Points')
-    axes[0, 2].set_ylabel('price')
+    axes[0, 2].set_ylabel(f'{dependent_var}')
 
-    # 4. Histograms by p_color  
-    species_list = data[group_var].unique()
+    # 4. Histograms by species
+    group_list = data[group_var].unique()
     colors = ['skyblue', 'lightcoral', 'lightgreen']
 
-    for i, species in enumerate(species_list):
-        species_data = data[data[group_var] == species][dependent_var]
-        axes[1, 0].hist(species_data, alpha=0.7, label=species, color=colors[i % len(colors)],
+    for i, groups in enumerate(group_list):
+        groups_data = data[data[group_var] == groups][dependent_var]
+        axes[1, 0].hist(groups_data, alpha=0.7, label=groups, color=colors[i % len(colors)],
                         bins=15, density=True)
 
     axes[1, 0].set_title('Overlapping Histograms')
-    axes[1, 0].set_xlabel('price')
+    axes[1, 0].set_xlabel(f'{dependent_var}')
     axes[1, 0].set_ylabel('Density')
     axes[1, 0].legend()
 
     # 5. Mean plot with error bars (standard error)
-    means = species_stats['mean']
-    stds = species_stats['std']
-    ns = species_stats['count']
+    means = groups_stats['mean']
+    stds = groups_stats['std']
+    ns = groups_stats['count']
     ses = stds / np.sqrt(ns)  # Standard errors
 
     x_pos = range(len(means))
     axes[1, 1].bar(x_pos, means, yerr=ses, capsize=5, alpha=0.7,
                    color=['skyblue', 'lightcoral', 'lightgreen'])
-    axes[1, 1].set_title('Mean price with Standard Error')
-    axes[1, 1].set_xlabel('p_color')
-    axes[1, 1].set_ylabel('price')
+    axes[1, 1].set_title('Mean Body Mass with Standard Error')
+    axes[1, 1].set_xlabel('Species')
+    axes[1, 1].set_ylabel('Body Mass (g)')
     axes[1, 1].set_xticks(x_pos)
     axes[1, 1].set_xticklabels(means.index)
 
@@ -2992,10 +3004,10 @@ def explore_categorical_data(data):
     from scipy.stats import probplot
 
     all_residuals = []
-    for species in species_list:
-        species_data = data[data[group_var] == species][dependent_var]
-        species_mean = species_data.mean()
-        residuals = species_data - species_mean
+    for groups in group_list:
+        groups_data = data[data[group_var] == groups][dependent_var]
+        groups_mean = groups_data.mean()
+        residuals = groups_data - groups_mean
         all_residuals.extend(residuals)
 
     probplot(all_residuals, dist="norm", plot=axes[1, 2])
@@ -3013,11 +3025,11 @@ def explore_categorical_data(data):
 
     # Calculate between-group sum of squares
     ssb = 0
-    for species in species_list:
-        species_data = data[data[group_var] == species][dependent_var]
-        species_mean = species_data.mean()
-        species_n = len(species_data)
-        ssb += species_n * (species_mean - overall_mean) ** 2
+    for groups in group_list:
+        groups_data = data[data[group_var] == groups][dependent_var]
+        groups_mean = groups_data.mean()
+        species_n = len(groups_data)
+        ssb += species_n * (groups_mean - overall_mean) ** 2
 
     # Calculate within-group sum of squares
     ssw = sst - ssb
@@ -3041,7 +3053,7 @@ def explore_categorical_data(data):
 
     print(f"Effect size interpretation: {effect_interpretation}")
 
-    return species_stats
+    return groups_stats
 
 
 def check_anova_assumptions(data, dependent_var, group_var, alpha=0.05):
