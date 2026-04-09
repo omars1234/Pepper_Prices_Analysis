@@ -203,9 +203,9 @@ pip install -r requirements.txt
 
 #### *06C_dimensional_reduction - tsne,UMAP*
 
+#### *07_Feature_Selection*
 
-
-
+#### *08_ML_Model_Training*
 
 
 
