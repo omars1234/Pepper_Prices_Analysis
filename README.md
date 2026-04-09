@@ -201,11 +201,16 @@ pip install -r requirements.txt
 * *Compare original vs reconstructed data for specific samples*
 
 
-#### *06C_dimensional_reduction - tsne,UMAP*
+#### *06C_dimensional_reduction*
+* *tsne*
+* *UMAP*
 
 #### *07_Feature_Selection*
+* *Using GreedyBorutaPy*
 
 #### *08_ML_Model_Training*
+* *get he best_model*
+* *apply shap_model*
 
 
 
