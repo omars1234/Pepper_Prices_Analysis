@@ -173,6 +173,9 @@ pip install -r requirements.txt
   * *Comprehensive correlation matrix analysis with confidence intervals ,and creating advanced correlation visualizations*
 
 #### *04 Statistical Tests :* 
+
+<img src="Images/Two_Groups_non_parametric_tests.drawio.png" width="1100" height="400" />
+
   * *normality check visually and with Shapiro-Wilk test*
   * *Outlier detection and visualization*
   * *advanced Normality check* 
@@ -190,6 +193,9 @@ pip install -r requirements.txt
   * *power_analysis between price and binary categories*
 
 #### *05 chi squar test :* 
+
+<img src="Images/Two_Groups_parametric_tests.drawio (3).png" width="1100" height="400" />
+
   * *chi_square_test details*
   * *chi2 , carmer_V , Theil’s U*  
 
