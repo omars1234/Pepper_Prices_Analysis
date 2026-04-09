@@ -143,6 +143,8 @@ pip install -r requirements.txt
 
 #### *01 Correlation :* 
 
+<img src="Images/Descriptive_Statistics_and_Data_Visualization.png" width="1100" height="250" />
+
 * *A. Measures of Central Tendency*
 * *B. Measures of Dispersion*
 * *C. Exploration relationships between continuous variables*
@@ -152,6 +154,9 @@ pip install -r requirements.txt
   * *Correlation Assumptions Vaidation - Pearson correlation.*
 
 #### *02 Correlation_2 :*   
+
+<img src="Images/Advanced Correlation Analysis_2.png" width="1100" height="250" />
+
   * *Comprehensive correlation matrix analysis with confidence intervals*
   * *advanced correlation visualizations*
   * *Hierarchical clustering of correlation matrix*
@@ -160,6 +165,9 @@ pip install -r requirements.txt
   * *Final report*
 
 #### *03 Partial Correlation :* 
+
+<img src="Images/patialcorrelation.drawio (5).png" width="1100" height="250" />
+
   * *Analyze p_color effects on correlations*
   * *correlation analysis between p_color* 
   * *Comprehensive correlation matrix analysis with confidence intervals ,and creating advanced correlation visualizations*
